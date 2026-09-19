@@ -8,17 +8,17 @@
 
 ## Recommended hosting layout
 - Frontend: Vercel or any static/Next host
-- Backend: Render, Railway, Fly.io, or any Node host
-- Database: Neon PostgreSQL
+- Backend: the existing Render backend service
+- Database: the existing production PostgreSQL databases
 
 ## Backend environment variables
 Set these in your backend host:
 - `NODE_ENV=production`
 - `APP_PORT=10000` if your host lets you choose a port, otherwise let the platform inject `PORT`
 - `CLIENT_URL=https://your-frontend-domain.example`
-- `DATABASE_URL=<your pooled Neon string>`
-- `DIRECT_URL=<your unpooled Neon string>`
-- `DATABASE_URL_POOLER=<your pooled Neon string>`
+- `DATABASE_URL=<existing production value in Render>`
+- `DIRECT_URL=<existing production value in Render>`
+- `DATABASE_URL_POOLER=<existing production value in Render>`
 - `JWT_ACCESS_SECRET=<long random secret>`
 - `JWT_REFRESH_SECRET=<different long random secret>`
 - `JWT_ACCESS_EXPIRES_IN=15m`
@@ -35,16 +35,16 @@ Optional but recommended:
 
 ## Frontend environment variables
 Set this in your frontend host:
-- `NEXT_PUBLIC_API_URL=https://your-backend-domain.example/api`
+- `NEXT_PUBLIC_API_URL=https://elitex-vwym.onrender.com/api`
 
 ## Build and start commands
 Backend:
 - install deps: `npm install`
 - generate Prisma client: `npm run prisma:generate`
-- migrate database: `npm run prisma:migrate`
-- seed admin/catalog data if needed: `npm run prisma:seed`
 - build: `npm run build`
 - start: `npm run start`
+
+Do not run database migration, reset, seed, or sync commands against production.
 
 Frontend:
 - install deps: `npm install`

@@ -111,6 +111,6 @@ email is unconfigured by default), verify it, then sign in.
 
 ## Deployment
 - **Frontend**: deploy `frontend/` to Vercel — set `NEXT_PUBLIC_API_URL` to
-  your deployed backend URL
-- **Backend**: deploy `backend/` to Railway, Render, or any Node host —
-  provision a managed Postgres instance and set all `.env` values there
+  `https://elitex-vwym.onrender.com/api`
+- **Backend**: use the existing Render backend service and preserve the existing
+  production database environment variables
