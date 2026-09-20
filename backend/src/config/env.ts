@@ -24,6 +24,8 @@ function parseOrigins(...values: Array<string | undefined>): string[] {
 
 const defaultClientOrigins = [
   'http://localhost:3000',
+  'https://elitexshop.com',
+  'https://www.elitexshop.com',
   'https://elitex-gmr5vr5ml-bae-224a.vercel.app',
   'https://elitex-git-main-bae-224a.vercel.app',
   'https://elitex-9ju7g5pk-bae-224a.vercel.app',

@@ -29,6 +29,6 @@ services:
       - key: CORS_ORIGIN_PATTERNS
         value: ^https:\/\/elitex(?:-[a-z0-9-]+)?-bae-224a\.vercel\.app$
       - key: FRONTEND_URL
-        value: https://elitex-git-main-bae-224a.vercel.app
+        value: https://elitexshop.com
       - key: CLIENT_URL
-        value: https://www.elitexshop.com
+        value: https://elitexshop.com

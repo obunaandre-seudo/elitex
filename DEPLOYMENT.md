@@ -15,7 +15,9 @@
 Set these in your backend host:
 - `NODE_ENV=production`
 - `APP_PORT=10000` if your host lets you choose a port, otherwise let the platform inject `PORT`
-- `CLIENT_URL=https://your-frontend-domain.example`
+- `CLIENT_URL=https://elitexshop.com`
+- `FRONTEND_URL=https://elitexshop.com`
+- `CORS_ORIGINS=https://elitexshop.com,https://www.elitexshop.com`
 - `DATABASE_URL=<existing production value in Render>`
 - `DIRECT_URL=<existing production value in Render>`
 - `DATABASE_URL_POOLER=<existing production value in Render>`
@@ -59,5 +61,6 @@ Frontend:
 
 ## Notes
 - If your host exposes only `PORT`, the backend will now use that automatically.
-- If you deploy behind a new domain, update `CLIENT_URL` on the backend and `NEXT_PUBLIC_API_URL` on the frontend.
+- The live frontend domain is `https://elitexshop.com`; keep it in `CLIENT_URL`, `FRONTEND_URL`, and `CORS_ORIGINS` on the backend.
+- If you deploy behind a new domain, update `CLIENT_URL`, `FRONTEND_URL`, and `CORS_ORIGINS` on the backend and `NEXT_PUBLIC_API_URL` on the frontend.
 - The live adult-wellness catalog is already surfaced in the UI, including the dedicated `/adult-wellness` page.
