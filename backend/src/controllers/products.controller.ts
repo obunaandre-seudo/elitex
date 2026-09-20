@@ -101,10 +101,7 @@ export async function listProducts(req: Request, res: Response, next: NextFuncti
       return next(err);
     }
 
-    const { page = '1', pageSize = '12' } = req.query as Record<string, string>;
-    const take = Math.min(parseInt(pageSize, 10) || 12, 1000);
-    const currentPage = Math.max(parseInt(page, 10) || 1, 1);
-    res.json({ products: [], total: 0, page: currentPage, pageSize: take });
+    return res.status(503).json({ error: 'Catalog database temporarily unavailable.' });
   }
 }
 
@@ -153,7 +150,7 @@ export async function listCategories(req: Request, res: Response, next: NextFunc
     if (!isDatabaseUnavailable(err)) {
       return next(err);
     }
-    res.json({ categories: [] });
+    return res.status(503).json({ error: 'Catalog database temporarily unavailable.' });
   }
 }
 

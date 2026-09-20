@@ -9,14 +9,14 @@ services:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        scope: build
+        sync: false
       - key: DIRECT_URL
-        scope: build
+        sync: false
       - key: DATABASE_URL_POOLER
-        scope: build
+        sync: false
       - key: JWT_ACCESS_SECRET
-        scope: build
+        sync: false
       - key: JWT_REFRESH_SECRET
-        scope: build
+        sync: false
       - key: CLIENT_URL
         value: https://www.elitexshop.com

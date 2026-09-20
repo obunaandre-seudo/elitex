@@ -1,7 +1,9 @@
 ﻿import { PrismaClient } from '@prisma/client';
 import { env } from './env';
 
-const databaseUrl = env.databaseUrl || env.databaseUrlPooler;
+// Runtime app traffic should use Neon's pooled endpoint when it is configured.
+// Prisma CLI commands can still use DIRECT_URL from schema.prisma for direct access.
+const databaseUrl = env.databaseUrlPooler || env.databaseUrl;
 if (databaseUrl) {
   process.env.DATABASE_URL = databaseUrl;
 }

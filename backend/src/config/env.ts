@@ -40,6 +40,7 @@ export const env = {
   databaseUrl: req('DATABASE_URL'),
   databaseUrlPooler: req('DATABASE_URL_POOLER'),
   directUrl: req('DIRECT_URL'),
+  dbDiagnosticToken: req('DB_DIAGNOSTIC_TOKEN'),
   jwt: {
     accessSecret: req('JWT_ACCESS_SECRET', 'dev_access_secret_change_me'),
     refreshSecret: req('JWT_REFRESH_SECRET', 'dev_refresh_secret_change_me'),

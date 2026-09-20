@@ -30,6 +30,46 @@ app.use(cookieParser());
 app.use(morgan(env.nodeEnv === 'production' ? 'combined' : 'dev'));
 app.use(generalLimiter);
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', service: 'elite-x-shop-api' }));
+app.get('/api/health/db', async (req, res) => {
+  if (env.nodeEnv === 'production') {
+    const bearer = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : '';
+    const diagnosticToken = String(req.headers['x-diagnostic-token'] ?? bearer);
+
+    if (!env.dbDiagnosticToken || diagnosticToken !== env.dbDiagnosticToken) {
+      return res.status(404).json({ error: 'Route not found: GET /api/health/db' });
+    }
+  }
+
+  try {
+    const [totalProducts, activeProducts, inactiveProducts, categoryCount] = await Promise.all([
+      prisma.product.count(),
+      prisma.product.count({ where: { isActive: true } }),
+      prisma.product.count({ where: { isActive: false } }),
+      prisma.category.count(),
+    ]);
+
+    res.json({
+      status: 'ok',
+      database: 'reachable',
+      totalProducts,
+      activeProducts,
+      inactiveProducts,
+      categoryCount,
+    });
+  } catch (err) {
+    if (!isDatabaseUnavailable(err)) {
+      return res.status(503).json({
+        status: 'error',
+        database: 'unreachable',
+      });
+    }
+
+    res.status(503).json({
+      status: 'error',
+      database: 'unreachable',
+    });
+  }
+});
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productsRoutes);
 app.use('/api/cart', cartRoutes);
