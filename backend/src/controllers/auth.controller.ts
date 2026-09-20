@@ -22,6 +22,37 @@ const REFRESH_COOKIE = 'refreshToken';
 const ACCESS_COOKIE = 'accessToken';
 const DEMO_ADMIN_EMAIL = 'admin@elitexshop.com';
 
+function normalizeEmailInput(email: unknown) {
+  return String(email ?? '').trim().toLowerCase();
+}
+
+async function findUserByEmail(email: unknown) {
+  const normalizedEmail = normalizeEmailInput(email);
+  if (!normalizedEmail) return null;
+
+  const exactUser = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+  if (exactUser) return exactUser;
+
+  const caseInsensitiveUser = await prisma.user.findFirst({
+    where: { email: { equals: normalizedEmail, mode: 'insensitive' } },
+    orderBy: { createdAt: 'asc' },
+  });
+  if (caseInsensitiveUser) return caseInsensitiveUser;
+
+  const trimmedMatches = await prisma.$queryRaw<Array<{ id: string }>>`
+    SELECT id
+    FROM "User"
+    WHERE lower(trim(email)) = ${normalizedEmail}
+    ORDER BY "createdAt" ASC
+    LIMIT 1
+  `;
+
+  const trimmedMatch = trimmedMatches[0];
+  if (!trimmedMatch) return null;
+
+  return prisma.user.findUnique({ where: { id: trimmedMatch.id } });
+}
+
 function authCookieBaseOptions() {
   const secure = env.nodeEnv === 'production';
   return {
@@ -57,9 +88,10 @@ function toPublicUser(user: { id: string; firstName: string; lastName: string; e
 
 export async function register(req: Request, res: Response, next: NextFunction) {
   try {
-    const { firstName, lastName, email, password } = req.body;
+    const { firstName, lastName, password } = req.body;
+    const email = normalizeEmailInput(req.body.email);
 
-    const existing = await prisma.user.findUnique({ where: { email } });
+    const existing = await findUserByEmail(email);
     if (existing) {
       throw new AppError('An account with this email already exists.', 409);
     }
@@ -135,12 +167,14 @@ export async function verifyEmail(req: Request, res: Response, next: NextFunctio
 
 export async function login(req: Request, res: Response, next: NextFunction) {
   try {
-    const { email, password } = req.body;
-    const user = await prisma.user.findUnique({ where: { email } });
+    const { password } = req.body;
+    const email = normalizeEmailInput(req.body.email);
+    const user = await findUserByEmail(email);
 
     if (user && (await bcrypt.compare(password, user.passwordHash))) {
-      if (user.email.toLowerCase() === 'admin@elitexshop.com' && user.role !== 'ADMIN') {
+      if (normalizeEmailInput(user.email) === DEMO_ADMIN_EMAIL && user.role !== 'ADMIN') {
         user.role = 'ADMIN';
+        void prisma.user.update({ where: { id: user.id }, data: { role: 'ADMIN' } }).catch(() => undefined);
       }
       const accessToken = signAccessToken({ sub: user.id, role: user.role, email: user.email });
       const refreshToken = signRefreshToken(user.id);
@@ -189,7 +223,8 @@ export async function login(req: Request, res: Response, next: NextFunction) {
       return next(err);
     }
 
-    const { email, password } = req.body;
+    const { password } = req.body;
+    const email = normalizeEmailInput(req.body.email);
     const loginResult = await fallbackLoginUser(email, password);
     if (!loginResult) {
       return next(new AppError('Invalid email or password.', 401));
@@ -297,8 +332,8 @@ export async function logout(req: Request, res: Response, next: NextFunction) {
 
 export async function forgotPassword(req: Request, res: Response, next: NextFunction) {
   try {
-    const { email } = req.body;
-    const user = await prisma.user.findUnique({ where: { email } });
+    const email = normalizeEmailInput(req.body.email);
+    const user = await findUserByEmail(email);
 
     // Always respond with success to avoid leaking whether an email is registered.
     if (user) {

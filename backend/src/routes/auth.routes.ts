@@ -6,6 +6,7 @@ import { authLimiter } from '../middleware/rateLimiter';
 import { requireAuth } from '../middleware/auth';
 
 const router = Router();
+const normalizeEmail = (value: unknown) => String(value ?? '').trim().toLowerCase();
 
 router.post(
   '/register',
@@ -13,7 +14,7 @@ router.post(
   [
     body('firstName').trim().isLength({ min: 1 }).withMessage('First name is required.'),
     body('lastName').trim().isLength({ min: 1 }).withMessage('Last name is required.'),
-    body('email').isEmail().withMessage('A valid email is required.').normalizeEmail(),
+    body('email').customSanitizer(normalizeEmail).isEmail().withMessage('A valid email is required.'),
     body('password')
       .isLength({ min: 8 })
       .withMessage('Password must be at least 8 characters.')
@@ -34,7 +35,7 @@ router.post(
 router.post(
   '/login',
   authLimiter,
-  [body('email').isEmail().normalizeEmail(), body('password').notEmpty()],
+  [body('email').customSanitizer(normalizeEmail).isEmail(), body('password').notEmpty()],
   validate,
   authController.login
 );
@@ -45,7 +46,7 @@ router.post('/logout', authController.logout);
 router.post(
   '/forgot-password',
   authLimiter,
-  [body('email').isEmail().normalizeEmail()],
+  [body('email').customSanitizer(normalizeEmail).isEmail()],
   validate,
   authController.forgotPassword
 );
