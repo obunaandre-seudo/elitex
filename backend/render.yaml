@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: elite-x-shop-backend
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        scope: build
+      - key: DIRECT_URL
+        scope: build
+      - key: DATABASE_URL_POOLER
+        scope: build
+      - key: JWT_ACCESS_SECRET
+        scope: build
+      - key: JWT_REFRESH_SECRET
+        scope: build
+      - key: CLIENT_URL
+        value: https://www.elitexshop.com

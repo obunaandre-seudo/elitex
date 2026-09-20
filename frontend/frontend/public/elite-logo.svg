@@ -1,0 +1,50 @@
+﻿<svg width="1200" height="320" viewBox="0 0 1200 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="320" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#071022"/>
+      <stop offset="1" stop-color="#040813"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="120" y1="40" x2="280" y2="280" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#102043"/>
+      <stop offset="1" stop-color="#091122"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(190 106) rotate(56) scale(160 140)">
+      <stop stop-color="#4F97FF" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#4F97FF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#FFF3C9"/>
+      <stop offset="0.5" stop-color="#F6D36A"/>
+      <stop offset="1" stop-color="#C98B16"/>
+    </linearGradient>
+    <linearGradient id="text" x1="340" y1="80" x2="1140" y2="250" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FDF7DF"/>
+      <stop offset="0.42" stop-color="#F6D36A"/>
+      <stop offset="1" stop-color="#FFEFC0"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="8" y="8" width="1184" height="304" rx="76" fill="url(#bg)" stroke="#F6D36A" stroke-opacity="0.16" stroke-width="2"/>
+  <rect x="8" y="8" width="1184" height="304" rx="76" fill="url(#glow)"/>
+
+  <g transform="translate(42 42)">
+    <rect width="236" height="236" rx="58" fill="url(#panel)" stroke="#4F97FF" stroke-opacity="0.22"/>
+    <circle cx="118" cy="118" r="94" fill="none" stroke="#F6D36A" stroke-width="10" stroke-opacity="0.9"/>
+    <circle cx="118" cy="118" r="70" fill="none" stroke="#FFFFFF" stroke-opacity="0.16" stroke-width="3"/>
+    <path d="M76 78H148V100H106V120H144V142H106V166H152V190H76V78Z" fill="url(#gold)"/>
+    <path d="M154 76H184L153 118L186 162H155L134 132L112 162H82L117 115L85 76H116L136 104L154 76Z" fill="url(#gold)"/>
+    <circle cx="176" cy="78" r="8" fill="#FFF7DC"/>
+    <path d="M52 198L66 184L80 198L66 212L52 198Z" fill="#F7E198" fill-opacity="0.84"/>
+    <path d="M166 50L174 42L182 50L174 58L166 50Z" fill="#F7E198" fill-opacity="0.84"/>
+  </g>
+
+  <g transform="translate(334 68)">
+    <text x="0" y="52" fill="#FFFFFF" fill-opacity="0.8" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="700" letter-spacing="0.42em">ELITE</text>
+    <text x="0" y="160" fill="url(#text)" font-family="Playfair Display, Georgia, serif" font-size="110" font-weight="800" letter-spacing="-0.03em">Elite</text>
+    <text x="315" y="160" fill="url(#text)" font-family="Playfair Display, Georgia, serif" font-size="110" font-weight="900" letter-spacing="-0.06em">X</text>
+    <text x="410" y="160" fill="url(#text)" font-family="Playfair Display, Georgia, serif" font-size="110" font-weight="800" letter-spacing="-0.03em">Shop</text>
+    <rect x="2" y="182" width="610" height="2" rx="1" fill="#F6D36A" fill-opacity="0.32"/>
+    <text x="0" y="230" fill="#C7D5EE" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="500" letter-spacing="0.16em">SHOP WITH CLASS</text>
+  </g>
+</svg>
+
