@@ -71,6 +71,42 @@ export async function uploadProductImages(files: Express.Multer.File[], folderKe
   }
 }
 
+export async function uploadProductImagesFromUrls(
+  imageUrls: string[],
+  folderKey: string
+): Promise<UploadedCloudinaryImage[]> {
+  ensureCloudinaryConfigured();
+
+  const folder = `elite-x-shop/products/${folderKey}`;
+  const uploaded: UploadedCloudinaryImage[] = [];
+
+  try {
+    for (const imageUrl of imageUrls) {
+      if (!imageUrl || !/^https?:\/\//i.test(imageUrl)) {
+        continue;
+      }
+
+      const result = await cloudinary.uploader.upload(imageUrl, {
+        folder,
+        resource_type: 'image',
+        use_filename: true,
+        unique_filename: true,
+        overwrite: false,
+      });
+
+      uploaded.push({
+        secureUrl: result.secure_url,
+        publicId: result.public_id,
+      });
+    }
+
+    return uploaded;
+  } catch (err) {
+    await deleteCloudinaryImages(uploaded.map((image) => image.publicId));
+    throw err;
+  }
+}
+
 export async function deleteCloudinaryImages(publicIds: string[]) {
   const ids = publicIds.filter(Boolean);
   if (!ids.length) return;
