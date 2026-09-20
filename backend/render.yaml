@@ -18,5 +18,9 @@ services:
         sync: false
       - key: JWT_REFRESH_SECRET
         sync: false
+      - key: CORS_ORIGINS
+        value: https://www.elitexshop.com,https://elitexshop.com,https://elitex-gmr5vr5ml-bae-224a.vercel.app
+      - key: FRONTEND_URL
+        value: https://elitex-gmr5vr5ml-bae-224a.vercel.app
       - key: CLIENT_URL
         value: https://www.elitexshop.com

@@ -20,7 +20,15 @@ import wishlistRoutes from './routes/wishlist.routes';
 import notificationsRoutes from './routes/notifications.routes';
 const app = express();
 app.set('trust proxy', 1);
-const corsOptions: CorsOptions = { origin: (origin, callback) => { if (!origin || env.clientUrls.includes(origin)) return callback(null, true); callback(null, false); }, credentials: true };
+const corsOptions: CorsOptions = {
+  origin: (origin, callback) => {
+    if (!origin || env.clientUrls.includes(origin)) return callback(null, true);
+    callback(null, false);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
 app.use(helmet());
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));

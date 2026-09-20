@@ -22,7 +22,12 @@ function parseOrigins(...values: Array<string | undefined>): string[] {
   return [...origins];
 }
 
-const clientUrls = parseOrigins(process.env.CORS_ORIGINS, process.env.FRONTEND_URL, process.env.CLIENT_URL, 'http://localhost:3000');
+const defaultClientOrigins = [
+  'http://localhost:3000',
+  'https://elitex-gmr5vr5ml-bae-224a.vercel.app',
+];
+
+const clientUrls = parseOrigins(process.env.CORS_ORIGINS, process.env.FRONTEND_URL, process.env.CLIENT_URL, ...defaultClientOrigins);
 
 const cjApiKey = req('CJ_API_KEY');
 const cjApiSecret = req('CJ_API_SECRET');
