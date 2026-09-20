@@ -7,6 +7,7 @@ import { env } from '../config/env';
 import slugify from '../utils/slugify';
 import { isDatabaseUnavailable } from '../utils/dbFallback';
 import { AuthedRequest } from '../middleware/auth';
+import { deleteCloudinaryImages, uploadProductImages, UploadedCloudinaryImage } from '../services/cloudinary.service';
 
 const MANUAL_PRODUCT_PREFIX = 'MANUAL-';
 const SEXUAL_WELLNESS_SLUG = 'sexual-wellness';
@@ -45,12 +46,6 @@ function mergeCatalog(products: Array<any>) {
 function toNumber(value: unknown, fallback = 0) {
   const n = typeof value === 'string' ? Number.parseFloat(value) : Number(value);
   return Number.isFinite(n) ? n : fallback;
-}
-
-function buildImageUrl(imageDataUrl?: string, imageUrl?: string) {
-  if (imageDataUrl?.trim()) return imageDataUrl.trim();
-  if (imageUrl?.trim()) return imageUrl.trim();
-  return '';
 }
 
 function buildManualProductId() {
@@ -262,16 +257,15 @@ export async function syncFromCjDropshipping(req: Request, res: Response, next: 
 }
 
 export async function createManualProduct(req: AuthedRequest, res: Response, next: NextFunction) {
-  const { name, price, stock, description, discountPercent, imageDataUrl, imageUrl, categorySlug: requestedCategorySlug } = req.body as {
+  const { name, price, stock, description, discountPercent, categorySlug: requestedCategorySlug } = req.body as {
     name?: string;
     price?: string | number;
     stock?: string | number;
     description?: string;
     discountPercent?: string | number;
-    imageDataUrl?: string;
-    imageUrl?: string;
     categorySlug?: string;
   };
+  let uploadedImages: UploadedCloudinaryImage[] = [];
 
   try {
     const title = String(name ?? '').trim();
@@ -279,104 +273,88 @@ export async function createManualProduct(req: AuthedRequest, res: Response, nex
     const numericPrice = toNumber(price, NaN);
     const numericStock = Math.max(0, Math.floor(toNumber(stock, 0)));
     const numericDiscount = Math.min(100, Math.max(0, toNumber(discountPercent, 0)));
-    const resolvedImage = buildImageUrl(imageDataUrl, imageUrl);
     const categorySlug = normalizeManualCategorySlug(requestedCategorySlug);
+    const imageFiles = Array.isArray(req.files) ? req.files : [];
 
     if (!title) throw new AppError('Product name is required.');
     if (!writeUp) throw new AppError('Product description is required.');
     if (!Number.isFinite(numericPrice) || numericPrice <= 0) throw new AppError('Product price must be greater than zero.');
-    if (!resolvedImage) throw new AppError('Product image is required.');
-
-    const category = await prisma.category.upsert({
-      where: { slug: categorySlug },
-      update: {},
-      create: { name: getManualCategoryName(categorySlug), slug: categorySlug },
-    });
+    if (!imageFiles.length) throw new AppError('At least one product image is required.');
 
     const basePrice = Math.round(numericPrice * 100) / 100;
     const sellingPrice = Math.max(0, Math.round(basePrice * (1 - numericDiscount / 100) * 100) / 100);
     const aliexpressId = buildManualProductId();
     const slug = slugify(title) + '-' + aliexpressId.slice(-6);
+    uploadedImages = await uploadProductImages(imageFiles, slug);
 
-    const product = await prisma.product.create({
-      data: {
-        aliexpressId,
-        title,
-        slug,
-        description: writeUp,
-        basePrice,
-        markupPercent: 0,
-        sellingPrice,
-        currency: 'NGN',
-        stock: numericStock,
-        ratingAverage: 0,
-        ratingCount: 0,
-        categoryId: category.id,
-        images: {
-          create: [{ url: resolvedImage, position: 0 }],
-        },
-      },
-      include: { images: true, category: true },
-    });
+    const product = await prisma.$transaction(async (tx) => {
+      const category = await tx.category.upsert({
+        where: { slug: categorySlug },
+        update: {},
+        create: { name: getManualCategoryName(categorySlug), slug: categorySlug },
+      });
 
-    await prisma.auditLog.create({
-      data: {
-        userId: req.user?.sub,
-        action: 'CREATE_MANUAL_PRODUCT',
-        entity: 'Product',
-        entityId: product.id,
-        metadata: {
+      const createdProduct = await tx.product.create({
+        data: {
+          aliexpressId,
           title,
-          price: basePrice,
+          slug,
+          description: writeUp,
+          basePrice,
+          markupPercent: 0,
           sellingPrice,
+          currency: 'NGN',
           stock: numericStock,
-          discountPercent: numericDiscount,
+          ratingAverage: 0,
+          ratingCount: 0,
+          categoryId: category.id,
+          images: {
+            create: uploadedImages.map((image, index) => ({ url: image.secureUrl, position: index })),
+          },
         },
-      },
+        include: { images: true, category: true },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId: req.user?.sub,
+          action: 'CREATE_MANUAL_PRODUCT',
+          entity: 'Product',
+          entityId: createdProduct.id,
+          metadata: {
+            title,
+            price: basePrice,
+            sellingPrice,
+            stock: numericStock,
+            discountPercent: numericDiscount,
+          },
+        },
+      });
+
+      return createdProduct;
     });
 
     res.status(201).json({ product, message: 'Manual product created successfully.' });
   } catch (err) {
+    await deleteCloudinaryImages(uploadedImages.map((image) => image.publicId));
+
     if (!isDatabaseUnavailable(err)) {
       return next(err);
     }
-
-    const offlineCategorySlug = normalizeManualCategorySlug(requestedCategorySlug);
-    return res.status(201).json({
-      product: {
-        id: 'offline-' + Date.now(),
-        aliexpressId: buildManualProductId(),
-        title: name,
-        slug: slugify(String(name ?? 'product')),
-        description,
-        sourceBasePrice: null,
-        basePrice: toNumber(price, 0),
-        markupPercent: 0,
-        sellingPrice: Math.max(0, Math.round(toNumber(price, 0) * (1 - toNumber(discountPercent, 0) / 100) * 100) / 100),
-        currency: 'NGN',
-        stock: Math.max(0, Math.floor(toNumber(stock, 0))),
-        ratingAverage: 0,
-        ratingCount: 0,
-        categoryId: null,
-        category: { id: 'offline-' + offlineCategorySlug, name: getManualCategoryName(offlineCategorySlug), slug: offlineCategorySlug },
-        images: [{ id: 'offline-' + Date.now() + '-image', productId: 'offline-' + Date.now(), url: imageDataUrl || imageUrl || '', altText: null, position: 0 }],
-      },
-      message: 'Manual product created in offline mode.',
-    });
+    return res.status(503).json({ error: 'Database unavailable. Product images were not stored.' });
   }
 }
 
 export async function updateManualProduct(req: AuthedRequest, res: Response, next: NextFunction) {
-  const { name, price, stock, description, discountPercent, imageDataUrl, imageUrl, categorySlug: requestedCategorySlug } = req.body as {
+  const { name, price, stock, description, discountPercent, categorySlug: requestedCategorySlug } = req.body as {
     name?: string;
     price?: string | number;
     stock?: string | number;
     description?: string;
     discountPercent?: string | number;
-    imageDataUrl?: string;
-    imageUrl?: string;
     categorySlug?: string;
   };
+  let uploadedImages: UploadedCloudinaryImage[] = [];
 
   try {
     const existing = await prisma.product.findUnique({ where: { id: req.params.id }, include: { images: true, category: true } });
@@ -388,82 +366,67 @@ export async function updateManualProduct(req: AuthedRequest, res: Response, nex
     const numericPrice = toNumber(price, Number(existing.basePrice));
     const numericStock = Math.max(0, Math.floor(toNumber(stock, existing.stock)));
     const numericDiscount = Math.min(100, Math.max(0, toNumber(discountPercent, 0)));
-    const resolvedImage = buildImageUrl(imageDataUrl, imageUrl);
     const categorySlug = normalizeManualCategorySlug(requestedCategorySlug ?? existing.category?.slug);
+    const imageFiles = Array.isArray(req.files) ? req.files : [];
 
     if (!title) throw new AppError('Product name is required.');
     if (!writeUp) throw new AppError('Product description is required.');
     if (!Number.isFinite(numericPrice) || numericPrice <= 0) throw new AppError('Product price must be greater than zero.');
 
-    const category = await prisma.category.upsert({
-      where: { slug: categorySlug },
-      update: {},
-      create: { name: getManualCategoryName(categorySlug), slug: categorySlug },
-    });
-
     const basePrice = Math.round(numericPrice * 100) / 100;
     const sellingPrice = Math.max(0, Math.round(basePrice * (1 - numericDiscount / 100) * 100) / 100);
     const slug = existing.slug.startsWith('manual-') ? slugify(title) + '-' + (existing.aliexpressId?.slice(-6) ?? existing.id.slice(0, 6)) : existing.slug;
+    uploadedImages = imageFiles.length ? await uploadProductImages(imageFiles, slug) : [];
 
-    const product = await prisma.product.update({
-      where: { id: existing.id },
-      data: {
-        title,
-        slug,
-        description: writeUp,
-        basePrice,
-        sellingPrice,
-        stock: numericStock,
-        sourceBasePrice: null,
-        categoryId: category.id,
-        images: resolvedImage
-          ? {
-              deleteMany: {},
-              create: [{ url: resolvedImage, position: 0 }],
-            }
-          : undefined,
-      },
-      include: { images: true, category: true },
-    });
+    const product = await prisma.$transaction(async (tx) => {
+      const category = await tx.category.upsert({
+        where: { slug: categorySlug },
+        update: {},
+        create: { name: getManualCategoryName(categorySlug), slug: categorySlug },
+      });
 
-    await prisma.auditLog.create({
-      data: {
-        userId: req.user?.sub,
-        action: 'UPDATE_MANUAL_PRODUCT',
-        entity: 'Product',
-        entityId: product.id,
-        metadata: { title, price: basePrice, sellingPrice, stock: numericStock, discountPercent: numericDiscount },
-      },
+      const updatedProduct = await tx.product.update({
+        where: { id: existing.id },
+        data: {
+          title,
+          slug,
+          description: writeUp,
+          basePrice,
+          sellingPrice,
+          stock: numericStock,
+          sourceBasePrice: null,
+          categoryId: category.id,
+          images: uploadedImages.length
+            ? {
+                deleteMany: {},
+                create: uploadedImages.map((image, index) => ({ url: image.secureUrl, position: index })),
+              }
+            : undefined,
+        },
+        include: { images: true, category: true },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId: req.user?.sub,
+          action: 'UPDATE_MANUAL_PRODUCT',
+          entity: 'Product',
+          entityId: updatedProduct.id,
+          metadata: { title, price: basePrice, sellingPrice, stock: numericStock, discountPercent: numericDiscount },
+        },
+      });
+
+      return updatedProduct;
     });
 
     res.json({ product, message: 'Manual product updated successfully.' });
   } catch (err) {
+    await deleteCloudinaryImages(uploadedImages.map((image) => image.publicId));
+
     if (!isDatabaseUnavailable(err)) {
       return next(err);
     }
-
-    const offlineCategorySlug = normalizeManualCategorySlug(requestedCategorySlug);
-    return res.json({
-      product: {
-        id: req.params.id,
-        aliexpressId: 'MANUAL-offline',
-        title: name,
-        slug: slugify(String(name ?? 'product')),
-        description,
-        sourceBasePrice: null,
-        basePrice: toNumber(price, 0),
-        markupPercent: 0,
-        sellingPrice: Math.max(0, Math.round(toNumber(price, 0) * (1 - toNumber(discountPercent, 0) / 100) * 100) / 100),
-        currency: 'NGN',
-        stock: Math.max(0, Math.floor(toNumber(stock, 0))),
-        ratingAverage: 0,
-        ratingCount: 0,
-        categoryId: null,
-        category: { id: 'offline-' + offlineCategorySlug, name: getManualCategoryName(offlineCategorySlug), slug: offlineCategorySlug },
-        images: [{ id: 'offline-' + Date.now() + '-image', productId: req.params.id, url: imageDataUrl || imageUrl || '', altText: null, position: 0 }],
-      },
-      message: 'Manual product updated in offline mode.',
-    });
+    return res.status(503).json({ error: 'Database unavailable. Product images were not stored.' });
   }
 }
 

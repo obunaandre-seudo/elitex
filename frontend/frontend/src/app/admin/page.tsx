@@ -193,8 +193,8 @@ function ProductSync() {
   const [discountPercent, setDiscountPercent] = useState('0');
   const [description, setDescription] = useState('');
   const [manualCategorySlug, setManualCategorySlug] = useState('sexual-wellness');
-  const [imageDataUrl, setImageDataUrl] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [editingProductId, setEditingProductId] = useState('');
   const [editName, setEditName] = useState('');
   const [editPrice, setEditPrice] = useState('');
@@ -202,10 +202,18 @@ function ProductSync() {
   const [editDiscountPercent, setEditDiscountPercent] = useState('0');
   const [editDescription, setEditDescription] = useState('');
   const [editCategorySlug, setEditCategorySlug] = useState('sexual-wellness');
-  const [editImageDataUrl, setEditImageDataUrl] = useState('');
+  const [editImageFiles, setEditImageFiles] = useState<File[]>([]);
+  const [editImagePreviews, setEditImagePreviews] = useState<string[]>([]);
   const [editImageUrl, setEditImageUrl] = useState('');
   const [editing, setEditing] = useState(false);
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    return () => {
+      imagePreviews.forEach((preview) => URL.revokeObjectURL(preview));
+      editImagePreviews.forEach((preview) => URL.revokeObjectURL(preview));
+    };
+  }, [imagePreviews, editImagePreviews]);
 
   const { data: products, isLoading } = useQuery({
     queryKey: ['admin-products'],
@@ -232,16 +240,15 @@ function ProductSync() {
   async function handleCreateManualProduct() {
     setCreating(true);
     try {
-      const payload = {
-        name,
-        price: Number(price),
-        stock: Number(stock),
-        description,
-        discountPercent: Number(discountPercent || 0),
-        imageDataUrl: imageDataUrl || undefined,
-        imageUrl: imageDataUrl ? undefined : imageUrl || undefined,
-        categorySlug: manualCategorySlug,
-      };
+      const payload = new FormData();
+      payload.append('name', name);
+      payload.append('price', String(Number(price)));
+      payload.append('stock', String(Number(stock)));
+      payload.append('description', description);
+      payload.append('discountPercent', String(Number(discountPercent || 0)));
+      payload.append('categorySlug', manualCategorySlug);
+      imageFiles.forEach((file) => payload.append('images', file));
+
       const res = await api.post('/admin/products', payload);
       toast.success(res.data.message || 'Manual product created.');
       setName('');
@@ -250,8 +257,9 @@ function ProductSync() {
       setDiscountPercent('0');
       setDescription('');
       setManualCategorySlug('sexual-wellness');
-      setImageDataUrl('');
-      setImageUrl('');
+      imagePreviews.forEach((preview) => URL.revokeObjectURL(preview));
+      setImageFiles([]);
+      setImagePreviews([]);
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Failed to create manual product.');
@@ -260,30 +268,18 @@ function ProductSync() {
     }
   }
 
-  function onFileChange(file?: File | null) {
-    if (!file) {
-      setImageDataUrl('');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      setImageDataUrl(String(reader.result ?? ''));
-    };
-    reader.readAsDataURL(file);
+  function onFileChange(files?: FileList | null) {
+    imagePreviews.forEach((preview) => URL.revokeObjectURL(preview));
+    const nextFiles = Array.from(files ?? []);
+    setImageFiles(nextFiles);
+    setImagePreviews(nextFiles.map((file) => URL.createObjectURL(file)));
   }
 
-  function onEditFileChange(file?: File | null) {
-    if (!file) {
-      setEditImageDataUrl('');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      setEditImageDataUrl(String(reader.result ?? ''));
-    };
-    reader.readAsDataURL(file);
+  function onEditFileChange(files?: FileList | null) {
+    editImagePreviews.forEach((preview) => URL.revokeObjectURL(preview));
+    const nextFiles = Array.from(files ?? []);
+    setEditImageFiles(nextFiles);
+    setEditImagePreviews(nextFiles.map((file) => URL.createObjectURL(file)));
   }
 
   const manualProducts = (products ?? []).filter((p: any) => String(p.aliexpressId ?? '').startsWith('MANUAL-'));
@@ -300,7 +296,9 @@ function ProductSync() {
     setEditDiscountPercent(product.basePrice > product.sellingPrice ? String(Math.round((1 - Number(product.sellingPrice) / Number(product.basePrice)) * 100)) : '0');
     setEditDescription(product.description ?? '');
     setEditCategorySlug(product.category?.slug === 'gift-ideas' ? 'gift-ideas' : 'sexual-wellness');
-    setEditImageDataUrl('');
+    editImagePreviews.forEach((preview) => URL.revokeObjectURL(preview));
+    setEditImageFiles([]);
+    setEditImagePreviews([]);
     setEditImageUrl(product.images?.[0]?.url ?? '');
   }
 
@@ -312,16 +310,15 @@ function ProductSync() {
 
     setEditing(true);
     try {
-      const payload = {
-        name: editName,
-        price: Number(editPrice),
-        stock: Number(editStock),
-        description: editDescription,
-        discountPercent: Number(editDiscountPercent || 0),
-        imageDataUrl: editImageDataUrl || undefined,
-        imageUrl: editImageDataUrl ? undefined : editImageUrl || undefined,
-        categorySlug: editCategorySlug,
-      };
+      const payload = new FormData();
+      payload.append('name', editName);
+      payload.append('price', String(Number(editPrice)));
+      payload.append('stock', String(Number(editStock)));
+      payload.append('description', editDescription);
+      payload.append('discountPercent', String(Number(editDiscountPercent || 0)));
+      payload.append('categorySlug', editCategorySlug);
+      editImageFiles.forEach((file) => payload.append('images', file));
+
       const res = await api.patch(`/admin/products/${editingProductId}`, payload);
       toast.success(res.data.message || 'Manual product updated.');
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
@@ -357,8 +354,7 @@ function ProductSync() {
               </option>
             ))}
           </select>
-          <input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="Image URL (optional fallback)" className="input-elite md:col-span-2" />
-          <input type="file" accept="image/*" onChange={(e) => onFileChange(e.target.files?.[0] ?? null)} className="input-elite md:col-span-2" />
+          <input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(e) => onFileChange(e.target.files)} className="input-elite md:col-span-2" />
           <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Write-up about the product" rows={4} className="input-elite md:col-span-2" />
         </div>
 
@@ -369,10 +365,14 @@ function ProductSync() {
           <p className="text-xs text-slate">Manual products can be saved in Sexual Wellness or Gift Ideas and will surface before synced items.</p>
         </div>
 
-        {(imageDataUrl || imageUrl) && (
+        {imagePreviews.length > 0 && (
           <div className="mt-4 overflow-hidden rounded-2xl border border-white/5 bg-obsidian/60 p-3">
             <p className="mb-2 text-xs uppercase tracking-wide text-slate">Image Preview</p>
-            <img src={imageDataUrl || imageUrl} alt="Preview" className="h-48 w-full rounded-xl object-cover" />
+            <div className="grid gap-3 sm:grid-cols-3">
+              {imagePreviews.map((preview) => (
+                <img key={preview} src={preview} alt="Preview" className="h-48 w-full rounded-xl object-cover" />
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -410,8 +410,7 @@ function ProductSync() {
               </option>
             ))}
           </select>
-          <input value={editImageUrl} onChange={(e) => setEditImageUrl(e.target.value)} placeholder="Image URL (optional fallback)" className="input-elite md:col-span-2" />
-          <input type="file" accept="image/*" onChange={(e) => onEditFileChange(e.target.files?.[0] ?? null)} className="input-elite md:col-span-2" />
+          <input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(e) => onEditFileChange(e.target.files)} className="input-elite md:col-span-2" />
           <textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} placeholder="Write-up about the product" rows={4} className="input-elite md:col-span-2" />
         </div>
 
@@ -422,10 +421,14 @@ function ProductSync() {
           <p className="text-xs text-slate">Only products created manually can be updated here, and you can move them between Sexual Wellness and Gift Ideas.</p>
         </div>
 
-        {(editImageDataUrl || editImageUrl) && (
+        {(editImagePreviews.length > 0 || editImageUrl) && (
           <div className="mt-4 overflow-hidden rounded-2xl border border-white/5 bg-obsidian/60 p-3">
             <p className="mb-2 text-xs uppercase tracking-wide text-slate">Image Preview</p>
-            <img src={editImageDataUrl || editImageUrl} alt="Edit preview" className="h-48 w-full rounded-xl object-cover" />
+            <div className="grid gap-3 sm:grid-cols-3">
+              {(editImagePreviews.length ? editImagePreviews : [editImageUrl]).map((preview) => (
+                <img key={preview} src={preview} alt="Edit preview" className="h-48 w-full rounded-xl object-cover" />
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -726,8 +729,6 @@ async function saveMarkup() {
     </div>
   );
 }
-
-
 
 
 

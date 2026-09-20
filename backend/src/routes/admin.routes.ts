@@ -2,6 +2,7 @@
 import * as adminController from '../controllers/admin.controller';
 import * as productsController from '../controllers/products.controller';
 import { requireAuth, requireRole } from '../middleware/auth';
+import { productImageUpload } from '../middleware/upload';
 
 const router = Router();
 router.use(requireAuth, requireRole('ADMIN'));
@@ -16,8 +17,8 @@ router.patch('/users/:id/role', adminController.updateUserRole);
 router.get('/audit-logs', adminController.listAuditLogs);
 router.get('/coupons', adminController.listCoupons);
 router.post('/coupons', adminController.createCoupon);
-router.post('/products', productsController.createManualProduct);
-router.patch('/products/:id', productsController.updateManualProduct);
+router.post('/products', productImageUpload.array('images', 6), productsController.createManualProduct);
+router.patch('/products/:id', productImageUpload.array('images', 6), productsController.updateManualProduct);
 
 export default router;
 
