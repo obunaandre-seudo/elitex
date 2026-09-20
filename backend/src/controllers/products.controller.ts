@@ -55,6 +55,9 @@ function buildManualProductId() {
 function roundCurrency(value: number) {
   return Math.round(value * 100) / 100;
 }
+function isNonEmptyString(value: string | null | undefined): value is string {
+  return Boolean(value);
+}
 function applyVisiblePricing(product: any) {
   return normalizeVisibleCjProduct(product);
 }
@@ -309,7 +312,7 @@ export async function createManualProduct(req: AuthedRequest, res: Response, nex
           ratingCount: 0,
           categoryId: category.id,
           images: {
-            create: uploadedImages.map((image, index) => ({ url: image.secureUrl, position: index })),
+            create: uploadedImages.map((image, index) => ({ url: image.secureUrl, publicId: image.publicId, position: index })),
           },
         },
         include: { images: true, category: true },
@@ -377,6 +380,7 @@ export async function updateManualProduct(req: AuthedRequest, res: Response, nex
     const sellingPrice = Math.max(0, Math.round(basePrice * (1 - numericDiscount / 100) * 100) / 100);
     const slug = existing.slug.startsWith('manual-') ? slugify(title) + '-' + (existing.aliexpressId?.slice(-6) ?? existing.id.slice(0, 6)) : existing.slug;
     uploadedImages = imageFiles.length ? await uploadProductImages(imageFiles, slug) : [];
+    const replacedImagePublicIds = imageFiles.length ? existing.images.map((image) => image.publicId).filter(isNonEmptyString) : [];
 
     const product = await prisma.$transaction(async (tx) => {
       const category = await tx.category.upsert({
@@ -399,7 +403,7 @@ export async function updateManualProduct(req: AuthedRequest, res: Response, nex
           images: uploadedImages.length
             ? {
                 deleteMany: {},
-                create: uploadedImages.map((image, index) => ({ url: image.secureUrl, position: index })),
+                create: uploadedImages.map((image, index) => ({ url: image.secureUrl, publicId: image.publicId, position: index })),
               }
             : undefined,
         },
@@ -419,6 +423,7 @@ export async function updateManualProduct(req: AuthedRequest, res: Response, nex
       return updatedProduct;
     });
 
+    await deleteCloudinaryImages(replacedImagePublicIds);
     res.json({ product, message: 'Manual product updated successfully.' });
   } catch (err) {
     await deleteCloudinaryImages(uploadedImages.map((image) => image.publicId));

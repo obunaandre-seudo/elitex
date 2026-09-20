@@ -22,6 +22,15 @@ const REFRESH_COOKIE = 'refreshToken';
 const ACCESS_COOKIE = 'accessToken';
 const DEMO_ADMIN_EMAIL = 'admin@elitexshop.com';
 
+function authCookieBaseOptions() {
+  const secure = env.nodeEnv === 'production';
+  return {
+    httpOnly: true,
+    secure,
+    sameSite: secure ? 'none' as const : 'lax' as const,
+  };
+}
+
 function recordAuthAuditLog(userId: string | null | undefined, action: string, metadata?: Record<string, unknown>) {
   if (!userId) return;
 
@@ -31,17 +40,12 @@ function recordAuthAuditLog(userId: string | null | undefined, action: string, m
 }
 
 function setAuthCookies(res: Response, accessToken: string, refreshToken: string) {
-  const secure = env.nodeEnv === 'production';
   res.cookie(ACCESS_COOKIE, accessToken, {
-    httpOnly: true,
-    secure,
-    sameSite: 'lax',
+    ...authCookieBaseOptions(),
     maxAge: 15 * 60 * 1000,
   });
   res.cookie(REFRESH_COOKIE, refreshToken, {
-    httpOnly: true,
-    secure,
-    sameSite: 'lax',
+    ...authCookieBaseOptions(),
     path: '/api/auth/refresh',
     maxAge: 30 * 24 * 60 * 60 * 1000,
   });
@@ -216,9 +220,7 @@ export async function refresh(req: Request, res: Response, next: NextFunction) {
       if (fallbackUser) {
         const accessToken = signAccessToken({ sub: fallbackUser.id, role: fallbackUser.role, email: fallbackUser.email });
         res.cookie(ACCESS_COOKIE, accessToken, {
-          httpOnly: true,
-          secure: env.nodeEnv === 'production',
-          sameSite: 'lax',
+          ...authCookieBaseOptions(),
           maxAge: 15 * 60 * 1000,
         });
         res.json({ accessToken });
@@ -249,9 +251,7 @@ export async function refresh(req: Request, res: Response, next: NextFunction) {
 
     const accessToken = signAccessToken({ sub: user.id, role: user.role, email: user.email });
     res.cookie(ACCESS_COOKIE, accessToken, {
-      httpOnly: true,
-      secure: env.nodeEnv === 'production',
-      sameSite: 'lax',
+      ...authCookieBaseOptions(),
       maxAge: 15 * 60 * 1000,
     });
     res.json({ accessToken });
@@ -393,4 +393,3 @@ export async function me(req: AuthedRequest, res: Response, next: NextFunction) 
     });
   }
 }
-

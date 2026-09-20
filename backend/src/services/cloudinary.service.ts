@@ -11,7 +11,7 @@ let configured = false;
 
 function ensureCloudinaryConfigured() {
   if (!env.cloudinary.cloudName || !env.cloudinary.apiKey || !env.cloudinary.apiSecret) {
-    throw new AppError('Cloudinary image upload is not configured.', 500);
+    throw new AppError('Cloudinary image upload is not configured.', 503);
   }
 
   if (!configured) {
