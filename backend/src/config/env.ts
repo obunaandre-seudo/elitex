@@ -25,9 +25,30 @@ function parseOrigins(...values: Array<string | undefined>): string[] {
 const defaultClientOrigins = [
   'http://localhost:3000',
   'https://elitex-gmr5vr5ml-bae-224a.vercel.app',
+  'https://elitex-git-main-bae-224a.vercel.app',
+  'https://elitex-9ju7g5pk-bae-224a.vercel.app',
 ];
 
 const clientUrls = parseOrigins(process.env.CORS_ORIGINS, process.env.FRONTEND_URL, process.env.CLIENT_URL, ...defaultClientOrigins);
+
+function parseRegexList(value?: string): RegExp[] {
+  if (!value) return [];
+
+  return value
+    .split(',')
+    .map((pattern) => pattern.trim())
+    .filter(Boolean)
+    .map((pattern) => new RegExp(pattern));
+}
+
+const defaultClientOriginPatterns = [
+  /^https:\/\/elitex(?:-[a-z0-9-]+)?-bae-224a\.vercel\.app$/,
+];
+
+const clientOriginPatterns = [
+  ...defaultClientOriginPatterns,
+  ...parseRegexList(process.env.CORS_ORIGIN_PATTERNS),
+];
 
 const cjApiKey = req('CJ_API_KEY');
 const cjApiSecret = req('CJ_API_SECRET');
@@ -42,6 +63,7 @@ export const env = {
   nodeEnv: req('NODE_ENV', 'development'),
   clientUrl: clientUrls[0],
   clientUrls,
+  clientOriginPatterns,
   databaseUrl: req('DATABASE_URL'),
   databaseUrlPooler: req('DATABASE_URL_POOLER'),
   directUrl: req('DIRECT_URL'),

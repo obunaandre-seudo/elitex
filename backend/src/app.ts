@@ -20,9 +20,13 @@ import wishlistRoutes from './routes/wishlist.routes';
 import notificationsRoutes from './routes/notifications.routes';
 const app = express();
 app.set('trust proxy', 1);
+function isAllowedCorsOrigin(origin: string) {
+  return env.clientUrls.includes(origin) || env.clientOriginPatterns.some((pattern) => pattern.test(origin));
+}
+
 const corsOptions: CorsOptions = {
   origin: (origin, callback) => {
-    if (!origin || env.clientUrls.includes(origin)) return callback(null, true);
+    if (!origin || isAllowedCorsOrigin(origin)) return callback(null, true);
     callback(null, false);
   },
   credentials: true,
