@@ -1,5 +1,5 @@
-﻿const CACHE_NAME = 'elite-x-shop-v4';
-const APP_SHELL = ['/', '/manifest.webmanifest', '/dam.png'];
+const CACHE_NAME = 'elite-x-shop-v5';
+const APP_SHELL = ['/manifest.webmanifest', '/dam.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()));
@@ -14,17 +14,16 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith('/_next/')) return;
 
   if (request.mode === 'navigate') {
     event.respondWith((async () => {
       try {
         const response = await fetch(request);
-        const cache = await caches.open(CACHE_NAME);
-        cache.put(request, response.clone());
         return response;
       } catch {
         const cached = await caches.match(request);
-        return cached || caches.match('/') || Response.error();
+        return cached || Response.error();
       }
     })());
     return;

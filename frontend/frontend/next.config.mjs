@@ -7,5 +7,18 @@ const nextConfig = {
       { protocol: 'https', hostname: '**.alicdn.com' },
     ],
   },
+  async headers() {
+    return [
+      {
+        source: '/sw.js',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, max-age=0',
+          },
+        ],
+      },
+    ];
+  },
 };
 export default nextConfig;
