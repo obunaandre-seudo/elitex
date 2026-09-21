@@ -1,8 +1,8 @@
 # Elite X Shop
 
 A full-stack e-commerce platform: customers shop entirely through Elite X Shop,
-while products, prices, and inventory sync in from CJ Dropshipping with a
-transparent, admin-configurable markup (10% by default) applied automatically.
+while products, prices, and inventory sync into the Premium Collection with a
+transparent 35% markup applied automatically.
 
 ```
 elite-x-shop/
@@ -21,8 +21,8 @@ need **your own** credentials before they're fully live:
 
 | Integration | Status without your keys | To go live |
 |---|---|---|
-| **CJ Dropshipping** | Falls back to a bundled mock catalog (6 sample products) so sync, pricing, and the admin catalog UI all work immediately | Register at the CJ Dropshipping developer portal, create an app, add `CJ_API_KEY` / `CJ_API_SECRET` / `CJ_ACCESS_TOKEN` to `backend/.env` |
-| **Payments** (Stripe/PayPal/Paystack/Flutterwave) | Orders are created and a payment record is stubbed as `PENDING` | Add the relevant secret keys to `backend/.env`; wire up `backend/src/utils/payments.ts` to each provider's real charge/session API |
+| **Premium Collection sync** | Falls back to a bundled mock catalog (6 sample products) so sync, pricing, and the admin catalog UI all work immediately | Add collection API credentials to `backend/.env` when going live |
+| **Payments** (Paystack) | Orders are created with a Paystack checkout session | Add `PAYSTACK_SECRET_KEY` to `backend/.env` |
 | **Email** (Nodemailer) | Emails are logged to the console instead of sent | Add real SMTP credentials (e.g. from Mailtrap, Postmark, SES) to `backend/.env` |
 
 Everything else — auth, database schema, product/cart/order APIs, the
@@ -54,7 +54,7 @@ cp .env.example .env
 # edit .env — at minimum set DATABASE_URL to match your Postgres instance
 npm install
 npm run prisma:migrate      # creates all tables
-npm run prisma:seed         # creates an admin account + default 10% markup setting
+npm run prisma:seed         # creates an admin account + default 35% markup setting
 npm run dev                 # starts the API on http://localhost:4000
 ```
 
@@ -63,7 +63,7 @@ password after first login.**
 
 Once the backend is running, sign in as the admin and trigger a sync from
 **Admin Dashboard → Product Sync → Run Sync** to populate the shop with the
-mock CJ Dropshipping catalog (or a real one, once your API keys are set).
+mock Premium Collection catalog (or a real one, once your API keys are set).
 
 ### 3. Frontend
 
@@ -84,11 +84,10 @@ email is unconfigured by default), verify it, then sign in.
 
 ### Backend (`backend/`)
 - `prisma/schema.prisma` — full normalized schema (users, products, orders,
-  payments, coupons, audit logs, CJ Dropshipping sync logs, etc.)
-- `src/utils/cjdropshipping.ts` — CJ Dropshipping adapter with automatic mock-catalog
+  payments, coupons, audit logs, Premium Collection sync logs, etc.)
+- `src/utils/cjdropshipping.ts` — Premium Collection adapter with automatic mock-catalog
   fallback; this is the file to extend once you have live API access
-- `src/utils/payments.ts` — payment provider stubs (Stripe/PayPal/
-  Paystack/Flutterwave) — replace with real SDK calls
+- `src/utils/payments.ts` — Paystack checkout session creation
 - `src/controllers/`, `src/routes/` — REST API, organized by domain
 - `src/middleware/` — JWT auth, role checks, rate limiting, validation,
   centralized error handling

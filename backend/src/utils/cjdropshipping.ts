@@ -206,7 +206,7 @@ function mapProduct(item: any, variantSource?: any): RemoteProduct | null {
   const id = String(item.pid ?? item.productId ?? item.product_id ?? item.id ?? item.productSku ?? item.product_code ?? '');
   if (!id) return null;
 
-  const title = String(item.productNameEn ?? item.nameEn ?? item.english_subject ?? item.subject ?? item.productName ?? item.product_name ?? item.title ?? 'CJ Dropshipping Product');
+  const title = String(item.productNameEn ?? item.nameEn ?? item.english_subject ?? item.subject ?? item.productName ?? item.product_name ?? item.title ?? 'Premium Collection Product');
   const stock = Number(item.quantity ?? item.inventoryNum ?? item.totalInventoryNum ?? item.stock ?? 0) || 0;
   const images = imagesFrom(item);
   const defaultVariant = { sku: id + '-default', name: 'Default', priceDelta: 0, stock, attributes: {} };
@@ -217,9 +217,9 @@ function mapProduct(item: any, variantSource?: any): RemoteProduct | null {
     description: String(item.productDescription ?? item.description ?? item.description_url ?? item.productDesc ?? title),
     images: images.length ? images : ['https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800'],
     basePrice: parsePrice(item.totalPrice ?? item.productSellPrice ?? item.sellPrice ?? item.salePrice ?? item.product_min_price ?? item.product_price ?? item.item_offer_site_sale_price ?? item.original_price_cents ?? item.discount_price_cents),
-    currency: String(item.currencyCode ?? item.currency_code ?? item.base_currency_code ?? item.currency ?? 'USD'),
+    currency: String(item.currencyCode ?? item.currency_code ?? item.base_currency_code ?? item.currency ?? 'NGN'),
     stock,
-    category: String(item.categoryName ?? item.category_name ?? item.category ?? item.categoryFirstName ?? 'CJ Dropshipping'),
+    category: String(item.categoryName ?? item.category_name ?? item.category ?? item.categoryFirstName ?? 'Premium Collection'),
     ratingAverage: Number(item.avg_evaluation_rating ?? item.average_star ?? item.ratingAverage ?? item.star ?? 0) || 0,
     ratingCount: Number(item.evaluation_count ?? item.ratingCount ?? item.order_count ?? item.reviewCount ?? 0) || 0,
     variants: mapVariants(item, id, variantSource ?? defaultVariant),

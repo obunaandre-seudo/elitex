@@ -1,6 +1,7 @@
 ﻿import { env } from '../config/env';
 
 export const MANUAL_PRODUCT_PREFIX = 'MANUAL-';
+export const CJ_PRODUCT_MARKUP_PERCENT = 35;
 const DEFAULT_CJ_USD_TO_NGN_RATE = 1600;
 
 function toNumber(value: unknown) {
@@ -27,29 +28,38 @@ export function convertCjUsdToNgn(value: unknown) {
 
 export function getDisplayedCjPrice(basePrice: unknown, aliexpressId?: string | null, sellingPrice?: unknown) {
   if (isManualProductId(aliexpressId)) {
-    return toNumber(sellingPrice ?? basePrice);
+    return roundCurrency(toNumber(sellingPrice ?? basePrice));
   }
 
-  return convertCjUsdToNgn(sellingPrice ?? basePrice);
+  return applyCjMarkup(basePrice);
+}
+
+export function applyCjMarkup(basePrice: unknown) {
+  return roundCurrency(toNumber(basePrice) * (1 + CJ_PRODUCT_MARKUP_PERCENT / 100));
 }
 
 export function normalizeVisibleCjProduct(product: any) {
-  if (!product || isManualProductId(product.aliexpressId) || String(product.currency ?? '').toUpperCase() === 'NGN') {
+  if (!product) {
     return product;
   }
 
-  const variants = Array.isArray(product.variants)
-    ? product.variants.map((variant: any) => ({
-        ...variant,
-        priceDelta: convertCjUsdToNgn(variant.priceDelta ?? 0),
-      }))
-    : product.variants;
+  if (isManualProductId(product.aliexpressId)) {
+    return {
+      ...product,
+      basePrice: toNumber(product.basePrice),
+      sellingPrice: roundCurrency(toNumber(product.sellingPrice ?? product.basePrice)),
+      currency: 'NGN',
+    };
+  }
+
+  const sourcePrice = product.sourceBasePrice ?? product.basePrice;
+  const basePrice = roundCurrency(toNumber(sourcePrice));
 
   return {
     ...product,
-    basePrice: convertCjUsdToNgn(product.basePrice),
-    sellingPrice: convertCjUsdToNgn(product.sellingPrice ?? product.basePrice),
+    basePrice,
+    markupPercent: CJ_PRODUCT_MARKUP_PERCENT,
+    sellingPrice: applyCjMarkup(basePrice),
     currency: 'NGN',
-    variants,
   };
 }

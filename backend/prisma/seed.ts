@@ -9,7 +9,7 @@ async function main() {
   await prisma.setting.upsert({
     where: { key: 'MARKUP_PERCENT_DEFAULT' },
     update: {},
-    create: { key: 'MARKUP_PERCENT_DEFAULT', value: '10' },
+    create: { key: 'MARKUP_PERCENT_DEFAULT', value: '35' },
   });
 
   const adminPassword = await bcrypt.hash('AdminPass123', 12);
@@ -36,7 +36,7 @@ async function main() {
   console.log('Seed complete.');
   console.log('  Admin login: admin@elitexshop.com / AdminPass123');
   console.log('  Run `npm run dev` on the backend, then POST /api/products/admin/sync (as admin)');
-  console.log('  to populate the catalog from CJ Dropshipping.');
+  console.log('  to populate the Premium Collection catalog.');
 }
 
 main()

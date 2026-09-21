@@ -102,7 +102,7 @@ model Product {
   slug            String              @unique
   description     String
   basePrice       Decimal             @db.Decimal(10, 2)
-  markupPercent   Decimal             @default(10.00) @db.Decimal(5, 2)
+  markupPercent   Decimal             @default(35.00) @db.Decimal(5, 2)
   sellingPrice    Decimal             @db.Decimal(10, 2)
   currency        String              @default("USD")
   stock           Int                 @default(0)
@@ -384,10 +384,7 @@ enum OrderStatus {
 }
 
 enum PaymentProvider {
-  STRIPE
-  PAYPAL
   PAYSTACK
-  FLUTTERWAVE
 }
 
 enum CjFulfillmentStatus {

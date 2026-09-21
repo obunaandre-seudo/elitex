@@ -13,7 +13,8 @@ function applyVisiblePricing(product: any) {
 
 export async function createOrder(req: AuthedRequest, res: Response, next: NextFunction) {
   try {
-    const { addressId, couponCode, paymentProvider } = req.body;
+    const { addressId, couponCode } = req.body;
+    const paymentProvider = 'PAYSTACK';
     const userId = req.user!.sub;
 
     const cart = await prisma.cart.findUnique({
@@ -87,13 +88,13 @@ export async function createOrder(req: AuthedRequest, res: Response, next: NextF
         orderId: order.id,
         provider: paymentProvider,
         amount: grandTotal,
-        currency: paymentProvider === 'PAYSTACK' ? 'NGN' : 'USD',
+        currency: 'NGN',
         providerRef: paymentSession.reference,
       },
     });
 
     await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
-    await sendOrderConfirmationEmail(user.email, user.firstName, order.orderNumber, '$' + grandTotal.toFixed(2));
+    await sendOrderConfirmationEmail(user.email, user.firstName, order.orderNumber, 'NGN ' + grandTotal.toFixed(2));
     res.status(201).json({ order, payment, paymentSession });
   } catch (err) {
     next(err);

@@ -1,5 +1,4 @@
 'use client';
-import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { api } from '@/lib/api';
@@ -9,7 +8,6 @@ async function loadCart() {
 }
 
 export default function CheckoutPage() {
-  const router = useRouter();
   const { data: cart } = useQuery({ queryKey: ['cart'], queryFn: loadCart });
   const subtotal = (cart ?? []).reduce((sum, item) => sum + (Number(item.product.sellingPrice) + Number(item.variant?.priceDelta ?? 0)) * item.quantity, 0);
 
@@ -26,18 +24,17 @@ export default function CheckoutPage() {
       country: String(form.get('country') || ''),
       phone: String(form.get('phone') || ''),
     };
-    const paymentProvider = String(form.get('paymentProvider') || 'STRIPE');
     try {
       const addrRes = await api.post('/addresses', address).catch(() => null);
       const addressId = addrRes?.data?.address?.id;
-      const { data } = await api.post('/orders', { addressId, paymentProvider });
+      const { data } = await api.post('/orders', { addressId });
       if (data.paymentSession?.redirectUrl) {
         window.location.href = data.paymentSession.redirectUrl;
         return;
       }
-      router.push('/orders/' + data.order.id);
+      throw new Error('Paystack checkout is unavailable right now.');
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Could not place your order.');
+      toast.error(err.response?.data?.error || err.message || 'Could not place your order.');
     }
   }
 
@@ -54,12 +51,9 @@ export default function CheckoutPage() {
         <input className='input-elite w-full' name='postalCode' placeholder='Postal code' />
         <input className='input-elite w-full' name='country' placeholder='Country' />
         <input className='input-elite w-full' name='phone' placeholder='Phone' />
-        <select className='input-elite w-full' name='paymentProvider' defaultValue='STRIPE'>
-          <option value='STRIPE'>Card (Stripe)</option>
-          <option value='PAYPAL'>PayPal</option>
-          <option value='PAYSTACK'>Paystack</option>
-          <option value='FLUTTERWAVE'>Flutterwave</option>
-        </select>
+        <div className='rounded-xl border border-gold/20 bg-charcoal/40 px-4 py-3 text-sm text-ivory'>
+          Payment: Paystack secure checkout
+        </div>
         <button type='submit' className='btn-gold w-full'>Place Order</button>
       </form>
     </main>

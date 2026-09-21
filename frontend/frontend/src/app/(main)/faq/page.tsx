@@ -7,15 +7,15 @@ import { Plus } from 'lucide-react';
 const faqs = [
   {
     q: 'How is the price calculated on each product?',
-    a: 'Every listing is imported at its supplier cost, and a transparent markup (10% by default) is applied automatically. You can see the final price before you add anything to your cart — there are no hidden fees added at checkout.',
+    a: 'Every Premium Collection listing is priced with a transparent 35% margin already included. You can see the final price before you add anything to your cart - there are no hidden fees added at checkout.',
   },
   {
     q: 'How long does shipping take?',
-    a: 'Since products ship from our supplier network, delivery windows vary by item and destination — typically 7 to 20 business days. Once your order ships, you will receive a tracking number by email and can follow progress from your Orders page.',
+    a: 'Since products ship from our supplier network, delivery windows vary by item and destination - typically 7 to 20 business days. Once your order ships, you will receive a tracking number by email and can follow progress from your Orders page.',
   },
   {
-    q: 'What payment methods are supported?',
-    a: 'We support Stripe, PayPal, Paystack, and Flutterwave, so you can check out with a card, digital wallet, or regional payment method depending on your location.',
+    q: 'What payment method is supported?',
+    a: 'Checkout is handled only through Paystack secure payment.',
   },
   {
     q: 'Can I return or exchange an item?',
@@ -23,7 +23,7 @@ const faqs = [
   },
   {
     q: 'Is my payment information secure?',
-    a: 'We never store your raw card details. All payments are processed directly through PCI-compliant providers, and your account is protected with hashed passwords and secure session tokens.',
+    a: 'We never store your raw card details. Payments are processed through Paystack, and your account is protected with hashed passwords and secure session tokens.',
   },
   {
     q: 'How do I track my order?',

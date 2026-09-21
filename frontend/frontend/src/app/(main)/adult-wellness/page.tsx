@@ -18,7 +18,7 @@ const categories = [
 const trust = [
   { icon: ShieldCheck, title: 'Verified listings', text: 'Pulled from the latest collection and shown with real pricing.' },
   { icon: Truck, title: 'Discreet delivery', text: 'Plain packaging and tracked fulfillment.' },
-  { icon: Sparkles, title: 'Toy-first curation', text: 'Manual elite listings are surfaced before synced items.' },
+  { icon: Sparkles, title: 'Toy-first curation', text: 'Elite listings are surfaced first across the Premium Collection.' },
 ];
 
 function useProducts(params: Record<string, string> = {}) {
@@ -42,7 +42,7 @@ export default function AdultWellnessPage() {
           <h1 className='font-display text-5xl font-semibold leading-tight text-ivory sm:text-6xl'>Elite adult wellness first, with discreet shopping built in.</h1>
           <p className='mt-6 max-w-2xl text-base text-slate-light sm:text-lg'>
             Explore a refined selection of vibrators, personal stimulators, couples toys, lubes, and other adult essentials.
-            Manual products created in the admin dashboard appear before CJ-synced items in the collection.
+            Premium Collection products are curated for discreet shopping and reliable tracked fulfillment.
           </p>
           <div className='mt-8 flex flex-wrap gap-3'>
             <Link href='/shop?category=sexual-wellness' className='btn-gold'>
@@ -128,7 +128,7 @@ export default function AdultWellnessPage() {
       <section className='mt-20 rounded-3xl border border-white/5 bg-charcoal/40 p-8'>
         <h2 className='font-display text-3xl font-semibold text-ivory'>A note on the collection</h2>
         <p className='mt-4 max-w-3xl text-slate-light'>
-          Manual elite items created in the admin panel appear first in the collection, followed by CJ-synced products.
+          Premium Collection items are arranged so the most relevant adult wellness picks appear first.
         </p>
       </section>
     </main>

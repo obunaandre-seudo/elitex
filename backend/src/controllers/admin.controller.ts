@@ -2,6 +2,7 @@
 import { prisma } from '../config/prisma';
 import { AuthedRequest } from '../middleware/auth';
 import { applyMarkup } from '../utils/cjdropshipping';
+import { CJ_PRODUCT_MARKUP_PERCENT } from '../utils/productPricing';
 import {
   fallbackCoupons,
   fallbackDashboardStats,
@@ -52,7 +53,7 @@ export async function getSettings(req: AuthedRequest, res: Response, next: NextF
 }
 
 export async function updateMarkup(req: AuthedRequest, res: Response, next: NextFunction) {
-  const { markupPercent } = req.body;
+  const markupPercent = CJ_PRODUCT_MARKUP_PERCENT;
   try {
     const setting = await prisma.setting.upsert({
       where: { key: 'MARKUP_PERCENT_DEFAULT' },
@@ -60,22 +61,23 @@ export async function updateMarkup(req: AuthedRequest, res: Response, next: Next
       create: { key: 'MARKUP_PERCENT_DEFAULT', value: String(markupPercent) },
     });
 
-    // Recompute selling prices for CJ-synced products only.
+    // Recompute selling prices for Premium Collection synced products only.
     const products = await prisma.product.findMany();
     for (const p of products) {
       if (p.aliexpressId?.startsWith(MANUAL_PRODUCT_PREFIX)) {
         continue;
       }
 
-      const sellingPrice = applyMarkup(Number(p.basePrice), markupPercent);
-      await prisma.product.update({ where: { id: p.id }, data: { markupPercent, sellingPrice } });
+      const basePrice = Number(p.sourceBasePrice ?? p.basePrice);
+      const sellingPrice = applyMarkup(basePrice, markupPercent);
+      await prisma.product.update({ where: { id: p.id }, data: { basePrice, markupPercent, sellingPrice } });
     }
 
     await prisma.auditLog.create({
       data: { userId: req.user!.sub, action: 'UPDATE_MARKUP', metadata: { markupPercent } },
     });
 
-    res.json({ setting, message: `Markup updated to ${markupPercent}% and applied to CJ-synced products.` });
+    res.json({ setting, message: `Premium Collection markup is fixed at ${markupPercent}% and has been applied.` });
   } catch (err) {
     if (!isDatabaseUnavailable(err)) {
       return next(err);
@@ -102,7 +104,7 @@ export async function updateCjUsdToNgnRate(req: AuthedRequest, res: Response, ne
       data: { userId: req.user!.sub, action: 'UPDATE_CJ_USD_TO_NGN_RATE', metadata: { cjUsdToNgnRate } },
     });
 
-    res.json({ setting, message: `CJ USD to NGN rate updated to ${cjUsdToNgnRate}.` });
+    res.json({ setting, message: `Collection USD to NGN rate updated to ${cjUsdToNgnRate}.` });
   } catch (err) {
     if (!isDatabaseUnavailable(err)) {
       return next(err);
@@ -110,7 +112,7 @@ export async function updateCjUsdToNgnRate(req: AuthedRequest, res: Response, ne
 
     res.json({
       setting: { key: 'CJ_USD_TO_NGN_RATE', value: String(cjUsdToNgnRate) },
-      message: `CJ USD to NGN rate updated to ${cjUsdToNgnRate} in offline mode.`,
+      message: `Collection USD to NGN rate updated to ${cjUsdToNgnRate} in offline mode.`,
     });
   }
 }

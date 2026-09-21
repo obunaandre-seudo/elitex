@@ -2,8 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/prisma';
 import { AppError } from '../middleware/errorHandler';
 import { searchProducts, getProductDetail, applyMarkup } from '../utils/cjdropshipping';
-import { convertCjUsdToNgn, normalizeVisibleCjProduct } from '../utils/productPricing';
-import { env } from '../config/env';
+import { CJ_PRODUCT_MARKUP_PERCENT, normalizeVisibleCjProduct } from '../utils/productPricing';
 import slugify from '../utils/slugify';
 import { isDatabaseUnavailable } from '../utils/dbFallback';
 import { AuthedRequest } from '../middleware/auth';
@@ -158,20 +157,12 @@ export async function syncFromCjDropshipping(req: Request, res: Response, next: 
 
   try {
     const log = await prisma.aliExpressSyncLog.create({ data: { status: 'PARTIAL', itemsSynced: 0 } });
-    const markupSetting = await prisma.setting.findUnique({ where: { key: 'MARKUP_PERCENT_DEFAULT' } });
-    const rateSetting = await prisma.setting.findUnique({ where: { key: 'CJ_USD_TO_NGN_RATE' } });
-    const markupPercent = 100;
-    const cjUsdToNgnRate = rateSetting ? parseFloat(rateSetting.value) : env.cj.usdToNgnRate;
+    const markupPercent = CJ_PRODUCT_MARKUP_PERCENT;
 
     let synced = 0;
     for (const rp of remoteProducts) {
-      console.log("CJ PRODUCT:", {
-  title: rp.title,
-  basePrice: rp.basePrice,
-  currency: rp.currency,
-});
       const sourceBasePrice = roundCurrency(rp.basePrice);
-      const basePrice = roundCurrency(sourceBasePrice * cjUsdToNgnRate);
+      const basePrice = sourceBasePrice;
       const sellingPrice = applyMarkup(basePrice, markupPercent);
 
       let category = await prisma.category.findUnique({ where: { name: rp.category } });
@@ -193,6 +184,7 @@ export async function syncFromCjDropshipping(req: Request, res: Response, next: 
           basePrice,
           markupPercent,
           sellingPrice,
+          currency: 'NGN',
           stock: rp.stock,
           ratingAverage: rp.ratingAverage,
           ratingCount: rp.ratingCount,
@@ -206,7 +198,7 @@ export async function syncFromCjDropshipping(req: Request, res: Response, next: 
             create: rp.variants.map((v: any) => ({
               sku: v.sku,
               name: v.name,
-              priceDelta: roundCurrency(Number(v.priceDelta ?? 0) * cjUsdToNgnRate),
+              priceDelta: roundCurrency(Number(v.priceDelta ?? 0)),
               stock: v.stock,
               attributes: v.attributes,
             })),
@@ -221,6 +213,7 @@ export async function syncFromCjDropshipping(req: Request, res: Response, next: 
           basePrice,
           markupPercent,
           sellingPrice,
+          currency: 'NGN',
           stock: rp.stock,
           ratingAverage: rp.ratingAverage,
           ratingCount: rp.ratingCount,
@@ -230,7 +223,7 @@ export async function syncFromCjDropshipping(req: Request, res: Response, next: 
             create: rp.variants.map((v: any) => ({
               sku: v.sku,
               name: v.name,
-              priceDelta: roundCurrency(Number(v.priceDelta ?? 0) * cjUsdToNgnRate),
+              priceDelta: roundCurrency(Number(v.priceDelta ?? 0)),
               stock: v.stock,
               attributes: v.attributes,
             })),
@@ -246,14 +239,14 @@ export async function syncFromCjDropshipping(req: Request, res: Response, next: 
       data: { itemsSynced: synced, finishedAt: new Date(), status: 'SUCCESS' },
     });
 
-    res.json({ message: `Synced ${synced} product(s) from CJ Dropshipping.`, synced });
+    res.json({ message: `Synced ${synced} product(s) into Premium Collection.`, synced });
   } catch (err) {
     if (!isDatabaseUnavailable(err)) {
       return next(err);
     }
 
     return res.status(503).json({
-      error: 'Database unavailable. CJ products were not stored.',
+      error: 'Database unavailable. Premium Collection products were not stored.',
       synced: 0,
     });
   }
@@ -438,7 +431,7 @@ export async function updateManualProduct(req: AuthedRequest, res: Response, nex
 export async function getProductDetailPreview(req: Request, res: Response, next: NextFunction) {
   try {
     const detail = await getProductDetail(req.params.cjProductId);
-    if (!detail) throw new AppError('Product not found on CJ Dropshipping.', 404);
+    if (!detail) throw new AppError('Product not found in Premium Collection.', 404);
     res.json({ product: normalizeVisibleCjProduct(detail) });
   } catch (err) {
     next(err);

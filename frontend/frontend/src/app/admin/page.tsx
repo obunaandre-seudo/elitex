@@ -332,9 +332,9 @@ function ProductSync() {
 
   return (
     <div>
-      <h1 className="font-display text-2xl font-semibold text-ivory">Product Synchronization</h1>
+      <h1 className="font-display text-2xl font-semibold text-ivory">Premium Collection</h1>
       <p className="mt-1 text-sm text-slate">
-        Create a manual sexual wellness product or pull items from CJ Dropshipping. Manual items are shown first in the sexual wellness catalog.
+        Create a manual sexual wellness product or refresh the Premium Collection. Manual items are shown first in the sexual wellness catalog.
       </p>
 
       <div className="mt-6 rounded-2xl border border-gold/15 bg-charcoal/50 p-6">
@@ -437,7 +437,7 @@ function ProductSync() {
         <input
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
-          placeholder="Keyword to search on CJ Dropshipping (leave blank to sync catalog)"
+          placeholder="Keyword to search the Premium Collection (leave blank to sync catalog)"
           className="input-elite flex-1"
         />
         <button onClick={runSync} disabled={syncing} className="btn-gold shrink-0 disabled:opacity-60">
@@ -611,7 +611,7 @@ function CustomersPanel() {
 }
 
 function SettingsPanel() {
-  const [markup, setMarkup] = useState('10');
+  const [markup, setMarkup] = useState('35');
     const [cjRate, setCjRate] = useState('1600');
     const [savingRate, setSavingRate] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -633,7 +633,7 @@ function SettingsPanel() {
     queryClient.invalidateQueries({ queryKey: ['admin-settings'] });
     queryClient.invalidateQueries({ queryKey: ['admin-products'] });
   } catch {
-    toast.error('Failed to update CJ rate.');
+    toast.error('Failed to update collection rate.');
   } finally {
     setSavingRate(false);
   }
@@ -661,7 +661,7 @@ async function saveMarkup() {
 
       <div className="mt-6 rounded-2xl border border-gold/15 bg-charcoal/50 p-6">
         <div className="flex items-center gap-2 text-gold"><Percent size={18} /><h2 className="font-display text-lg">Default Markup Percentage</h2></div>
-        <p className="mt-2 text-sm text-slate">Applied automatically to every product synced from CJ Dropshipping. Manual products keep their own prices.</p>
+        <p className="mt-2 text-sm text-slate">Applied automatically to every synced Premium Collection product. Manual products keep their own prices.</p>
         <div className="mt-4 flex items-center gap-3">
           <input
             type="number" step="0.1" min="0" value={markup}
@@ -676,8 +676,8 @@ async function saveMarkup() {
       </div>
 
       <div className="mt-8 rounded-2xl border border-gold/15 bg-charcoal/50 p-6">
-        <div className="flex items-center gap-2 text-gold"><DollarSign size={18} /><h2 className="font-display text-lg">CJ USD to NGN Rate</h2></div>
-        <p className="mt-2 text-sm text-slate">Used when importing CJ products. Change this if the exchange rate moves.</p>
+        <div className="flex items-center gap-2 text-gold"><DollarSign size={18} /><h2 className="font-display text-lg">Collection USD to NGN Rate</h2></div>
+        <p className="mt-2 text-sm text-slate">Used when importing Premium Collection products. Change this if the exchange rate moves.</p>
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
           <input
             type="number"
@@ -707,10 +707,10 @@ async function saveMarkup() {
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2">
         <div className="rounded-2xl border border-white/5 bg-charcoal/50 p-6">
-          <h3 className="font-display text-ivory">Payment Providers</h3>
-          <p className="mt-1 text-xs text-slate">Configured via environment variables on the backend.</p>
+          <h3 className="font-display text-ivory">Payment Provider</h3>
+          <p className="mt-1 text-xs text-slate">Paystack is the only supported checkout provider.</p>
           <ul className="mt-3 space-y-2 text-sm">
-            {['Stripe', 'PayPal', 'Paystack', 'Flutterwave'].map((p) => (
+            {['Paystack'].map((p) => (
               <li key={p} className="flex items-center justify-between rounded-lg bg-white/[0.02] px-3 py-2">
                 <span className="text-ivory">{p}</span>
                 <span className="text-xs text-slate">Set in backend/.env</span>
@@ -719,8 +719,8 @@ async function saveMarkup() {
           </ul>
         </div>
         <div className="rounded-2xl border border-white/5 bg-charcoal/50 p-6">
-          <h3 className="font-display text-ivory">CJ Dropshipping Connection</h3>
-          <p className="mt-1 text-xs text-slate">Add your CJ_API_KEY in backend/.env to go live.</p>
+          <h3 className="font-display text-ivory">Premium Collection Connection</h3>
+          <p className="mt-1 text-xs text-slate">Configure collection API credentials in backend/.env to go live.</p>
           <div className="mt-3 flex items-center gap-2 rounded-lg bg-white/[0.02] px-3 py-2 text-sm text-ivory">
             <TrendingUp size={14} className="text-gold" /> Using mock catalog fallback until configured
           </div>
@@ -729,9 +729,6 @@ async function saveMarkup() {
     </div>
   );
 }
-
-
-
 
 
 

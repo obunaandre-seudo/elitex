@@ -9,7 +9,7 @@ const sections = [
   },
   {
     title: '3. Payment Data',
-    body: 'Card and payment details are handled directly by our payment processors (Stripe, PayPal, Paystack, Flutterwave) under their own PCI-compliant systems. Elite X Shop never stores raw card numbers on its servers.',
+    body: 'Card and payment details are handled directly by Paystack under its PCI-compliant systems. Elite X Shop never stores raw card numbers on its servers.',
   },
   {
     title: '4. Cookies',
@@ -17,7 +17,7 @@ const sections = [
   },
   {
     title: '5. Third-Party Sharing',
-    body: 'Product and inventory data is synchronized from CJ Dropshipping for the purpose of listing and fulfilling orders. Shipping details are shared with couriers strictly to deliver your order.',
+    body: 'Product and inventory data is maintained for the purpose of listing and fulfilling orders. Shipping details are shared with couriers strictly to deliver your order.',
   },
   {
     title: '6. Your Rights',

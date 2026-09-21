@@ -8,7 +8,7 @@ router.get('/', productsController.listProducts);
 router.get('/categories', productsController.listCategories);
 router.get('/:slug', productsController.getProductBySlug);
 
-// Admin-only: trigger a sync from CJ Dropshipping.
+// Admin-only: trigger a Premium Collection sync.
 router.post('/admin/sync', requireAuth, requireRole('ADMIN'), productsController.syncFromCjDropshipping);
 router.get('/admin/cj/:cjProductId', requireAuth, requireRole('ADMIN'), productsController.getProductDetailPreview);
 
