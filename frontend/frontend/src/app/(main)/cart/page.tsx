@@ -7,7 +7,6 @@ import { Trash2, Minus, Plus, ArrowRight, ShoppingBag } from 'lucide-react';
 import { api } from '@/lib/api';
 import { formatNaira } from '@/lib/currency';
 import { useCartStore } from '@/store/cartStore';
-import { useAuthStore } from '@/store/authStore';
 
 function resolveProductImage(product: { images?: { url?: string }[] }) {
   let image = '/product-placeholder.svg';
@@ -24,42 +23,28 @@ function resolveProductImage(product: { images?: { url?: string }[] }) {
 export default function CartPage() {
   const queryClient = useQueryClient();
   const setItemCount = useCartStore((s) => s.setItemCount);
-  const guestItems = useCartStore((s) => s.guestItems);
-  const updateGuestQuantity = useCartStore((s) => s.updateGuestQuantity);
-  const removeGuestItem = useCartStore((s) => s.removeGuestItem);
-  const user = useAuthStore((s) => s.user);
 
   const { data, isLoading } = useQuery({
     queryKey: ['cart'],
     queryFn: async () => {
       const res = await api.get('/cart');
-      setItemCount(res.data.items.reduce((sum: number, item: any) => sum + item.quantity, 0));
+      setItemCount(res.data.items.length);
       return res.data.items as any[];
     },
-    enabled: Boolean(user),
   });
 
   async function updateQty(itemId: string, quantity: number) {
     if (quantity < 1) return;
-    if (!user) {
-      updateGuestQuantity(itemId, quantity);
-      return;
-    }
     await api.patch(`/cart/items/${itemId}`, { quantity });
     queryClient.invalidateQueries({ queryKey: ['cart'] });
   }
 
   async function removeItem(itemId: string) {
-    if (!user) {
-      removeGuestItem(itemId);
-      return;
-    }
     await api.delete(`/cart/items/${itemId}`);
     queryClient.invalidateQueries({ queryKey: ['cart'] });
   }
 
-  const items = user ? (data ?? []) : guestItems;
-  const showLoading = Boolean(user) && isLoading;
+  const items = data ?? [];
   const subtotal = items.reduce(
     (sum, item) => sum + (Number(item.product.sellingPrice) + Number(item.variant?.priceDelta ?? 0)) * item.quantity,
     0
@@ -69,7 +54,7 @@ export default function CartPage() {
     <main className="mx-auto max-w-6xl px-6 py-16">
       <h1 className="font-display text-4xl font-semibold text-ivory">Your Cart</h1>
 
-      {showLoading ? (
+      {isLoading ? (
         <div className="mt-10 space-y-4">
           {[1, 2, 3].map((i) => <div key={i} className="skeleton h-28 rounded-2xl" />)}
         </div>
@@ -133,10 +118,9 @@ export default function CartPage() {
               <span>Total</span>
               <span className="text-gold">{formatNaira(subtotal + (subtotal > 50000 ? 0 : 2000))}</span>
             </div>
-            <Link href={user ? '/checkout' : '/login?redirect=/checkout'} className="btn-gold mt-6 w-full">
+            <Link href="/checkout" className="btn-gold mt-6 w-full">
               Checkout <ArrowRight size={16} />
             </Link>
-            {!user && <p className="mt-3 text-xs text-slate">You can review your cart now. Sign in when you are ready to place the order.</p>}
           </div>
         </div>
       )}
