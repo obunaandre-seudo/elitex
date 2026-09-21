@@ -17,6 +17,7 @@ export default function ProductDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const user = useAuthStore((s) => s.user);
   const setItemCount = useCartStore((s) => s.setItemCount);
+  const addGuestItem = useCartStore((s) => s.addGuestItem);
   const [activeImage, setActiveImage] = useState(0);
   const [zoomed, setZoomed] = useState(false);
   const [variantId, setVariantId] = useState<string | null>(null);
@@ -31,14 +32,23 @@ export default function ProductDetailPage() {
   });
 
   async function addToCart() {
-    if (!user) {
-      toast.error('Please sign in to add items to your cart.');
-      return;
-    }
     try {
+      if (!user) {
+        const selectedVariant = data!.product.variants?.find((variant: any) => variant.id === variantId) ?? null;
+        addGuestItem({
+          productId: data!.product.id,
+          variantId,
+          quantity,
+          product: data!.product,
+          variant: selectedVariant,
+        });
+        toast.success('Added to cart.');
+        return;
+      }
+
       await api.post('/cart/items', { productId: data!.product.id, variantId, quantity });
       const cart = await api.get('/cart');
-      setItemCount(cart.data.items.length);
+      setItemCount(cart.data.items.reduce((sum: number, item: any) => sum + item.quantity, 0));
       toast.success('Added to cart.');
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Could not add to cart.');
