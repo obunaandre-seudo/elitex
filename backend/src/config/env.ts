@@ -43,6 +43,25 @@ function parseRegexList(value?: string): RegExp[] {
     .map((pattern) => new RegExp(pattern));
 }
 
+function parseCloudinaryUrl(value?: string) {
+  if (!value) return { cloudName: '', apiKey: '', apiSecret: '' };
+
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'cloudinary:') {
+      return { cloudName: '', apiKey: '', apiSecret: '' };
+    }
+
+    return {
+      cloudName: url.hostname,
+      apiKey: decodeURIComponent(url.username),
+      apiSecret: decodeURIComponent(url.password),
+    };
+  } catch {
+    return { cloudName: '', apiKey: '', apiSecret: '' };
+  }
+}
+
 const defaultClientOriginPatterns = [
   /^https:\/\/elitex(?:-[a-z0-9-]+)?-bae-224a\.vercel\.app$/,
 ];
@@ -59,6 +78,7 @@ const cjRefreshToken = req('CJ_REFRESH_TOKEN');
 const cjBaseUrl = req('CJ_API_BASE_URL', 'https://developers.cjdropshipping.com/api2.0/v1');
 const cjCountry = req('CJ_COUNTRY', 'US');
 const cjLanguage = req('CJ_LANGUAGE', 'en');
+const cloudinaryUrl = parseCloudinaryUrl(process.env.CLOUDINARY_URL);
 
 export const env = {
   port: parseInt(process.env.PORT || process.env.APP_PORT || '4001', 10),
@@ -78,7 +98,11 @@ export const env = {
   },
   cj: { apiKey: cjApiKey, apiSecret: cjApiSecret, accessToken: cjAccessToken, refreshToken: cjRefreshToken, baseUrl: cjBaseUrl, country: cjCountry, language: cjLanguage, usdToNgnRate: parseFloat(req('CJ_USD_TO_NGN_RATE', '1600')) },
   defaultMarkupPercent: parseFloat(req('DEFAULT_MARKUP_PERCENT', '35')),
-  cloudinary: { cloudName: req('CLOUDINARY_CLOUD_NAME'), apiKey: req('CLOUDINARY_API_KEY'), apiSecret: req('CLOUDINARY_API_SECRET') },
+  cloudinary: {
+    cloudName: req('CLOUDINARY_CLOUD_NAME') || cloudinaryUrl.cloudName,
+    apiKey: req('CLOUDINARY_API_KEY') || cloudinaryUrl.apiKey,
+    apiSecret: req('CLOUDINARY_API_SECRET') || cloudinaryUrl.apiSecret,
+  },
   paystack: { secretKey: req('PAYSTACK_SECRET_KEY') },
   smtp: { host: req('SMTP_HOST'), port: parseInt(req('SMTP_PORT', '587'), 10), user: req('SMTP_USER'), pass: req('SMTP_PASS'), from: req('EMAIL_FROM', 'Elite X Shop <no-reply@elitexshop.com>') },
   rateLimit: { windowMs: parseInt(req('RATE_LIMIT_WINDOW_MS', '900000'), 10), max: parseInt(req('RATE_LIMIT_MAX', '200'), 10) },
