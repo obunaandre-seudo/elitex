@@ -4,11 +4,16 @@ import { AppError } from '../middleware/errorHandler';
 import { AuthedRequest } from '../middleware/auth';
 import { sendOrderConfirmationEmail, sendShippingUpdateEmail } from '../utils/mailer';
 import { createPaymentIntent } from '../utils/payments';
-import { normalizeVisibleCjProduct } from '../utils/productPricing';
+import { isManualProductId, normalizeVisibleCjProduct, normalizeVisibleCjVariant } from '../utils/productPricing';
 import { isCJLinkedProduct } from '../utils/cjOrders';
 
-function applyVisiblePricing(product: any) {
-  return normalizeVisibleCjProduct(product);
+function applyVisiblePricing(item: any) {
+  const isManual = isManualProductId(item.product?.aliexpressId);
+  return {
+    ...item,
+    product: normalizeVisibleCjProduct(item.product),
+    variant: isManual ? item.variant : normalizeVisibleCjVariant(item.variant),
+  };
 }
 
 export async function createOrder(req: AuthedRequest, res: Response, next: NextFunction) {
@@ -26,10 +31,7 @@ export async function createOrder(req: AuthedRequest, res: Response, next: NextF
     const address = await prisma.address.findFirst({ where: { id: addressId, userId } });
     if (!address) throw new AppError('Shipping address not found.', 404);
 
-    const visibleItems = cart.items.map((item) => ({
-      ...item,
-      product: applyVisiblePricing(item.product),
-    }));
+    const visibleItems = cart.items.map(applyVisiblePricing);
 
     let subtotal = 0;
     for (const item of visibleItems) {

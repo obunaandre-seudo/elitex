@@ -9,6 +9,7 @@ import Logo from './Logo';
 import { useCartStore } from '@/store/cartStore';
 import { useAuthStore } from '@/store/authStore';
 import { api } from '@/lib/api';
+import { refreshAuthenticatedCartCount } from '@/lib/guestCart';
 
 const links = [
   { href: '/', label: 'Home' },
@@ -23,6 +24,8 @@ export default function Navbar() {
   const [accountOpen, setAccountOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
   const itemCount = useCartStore((s) => s.itemCount);
+  const guestItems = useCartStore((s) => s.guestItems);
+  const setItemCount = useCartStore((s) => s.setItemCount);
   const user = useAuthStore((s) => s.user);
   const clear = useAuthStore((s) => s.clear);
 
@@ -34,11 +37,17 @@ export default function Navbar() {
     return () => document.removeEventListener('mousedown', onClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (!user) return;
+    refreshAuthenticatedCartCount().catch(() => undefined);
+  }, [user]);
+
   async function handleLogout() {
     try {
       await api.post('/auth/logout');
     } finally {
       clear();
+      setItemCount(guestItems.reduce((sum, item) => sum + item.quantity, 0));
       setAccountOpen(false);
       router.push('/login');
     }

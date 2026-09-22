@@ -10,6 +10,8 @@ import Logo from '@/components/Logo';
 import AmbientBackground from '@/components/AmbientBackground';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
+import { useCartStore } from '@/store/cartStore';
+import { mergeGuestCartToAccount } from '@/lib/guestCart';
 
 function extractSessionPayload(payload: any) {
   const user = payload?.user ?? payload?.data?.user ?? payload?.userData ?? null;
@@ -22,6 +24,7 @@ export default function LoginPage() {
   const router = useRouter();
   const setSession = useAuthStore((s) => s.setSession);
   const clear = useAuthStore((s) => s.clear);
+  const guestItems = useCartStore((s) => s.guestItems);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -53,6 +56,7 @@ export default function LoginPage() {
 
       clear();
       setSession(session.user, session.accessToken);
+      await mergeGuestCartToAccount(guestItems);
       toast.success('Welcome back, ' + session.user.firstName + '.');
       router.push(session.user.role === 'ADMIN' ? '/admin' : '/');
     } catch (err: any) {

@@ -2,6 +2,7 @@
 
 export const MANUAL_PRODUCT_PREFIX = 'MANUAL-';
 export const CJ_PRODUCT_MARKUP_PERCENT = 35;
+export const CJ_CUSTOMER_PRICE_MULTIPLIER = 2000;
 const DEFAULT_CJ_USD_TO_NGN_RATE = 1600;
 
 function toNumber(value: unknown) {
@@ -38,6 +39,21 @@ export function applyCjMarkup(basePrice: unknown) {
   return roundCurrency(toNumber(basePrice) * (1 + CJ_PRODUCT_MARKUP_PERCENT / 100));
 }
 
+export function getCustomerCjPrice(value: unknown) {
+  return roundCurrency(toNumber(value) * CJ_CUSTOMER_PRICE_MULTIPLIER);
+}
+
+export function normalizeVisibleCjVariant(variant: any) {
+  if (!variant) {
+    return variant;
+  }
+
+  return {
+    ...variant,
+    priceDelta: getCustomerCjPrice(variant.priceDelta),
+  };
+}
+
 export function normalizeVisibleCjProduct(product: any) {
   if (!product) {
     return product;
@@ -52,14 +68,18 @@ export function normalizeVisibleCjProduct(product: any) {
     };
   }
 
-  const sourcePrice = product.sourceBasePrice ?? product.basePrice;
-  const basePrice = roundCurrency(toNumber(sourcePrice));
+  const sourceBasePrice = toNumber(product.sourceBasePrice ?? product.basePrice);
+  const rawBasePrice = toNumber(product.basePrice ?? sourceBasePrice);
+  const rawSellingPrice = toNumber(product.sellingPrice ?? sourceBasePrice);
+  const hasSourceDiscount = rawSellingPrice > 0 && rawSellingPrice < rawBasePrice;
+  const sourceSellingPrice = hasSourceDiscount ? rawSellingPrice : sourceBasePrice;
 
   return {
     ...product,
-    basePrice,
-    markupPercent: CJ_PRODUCT_MARKUP_PERCENT,
-    sellingPrice: applyCjMarkup(basePrice),
+    basePrice: getCustomerCjPrice(sourceBasePrice),
+    markupPercent: 0,
+    sellingPrice: getCustomerCjPrice(sourceSellingPrice),
     currency: 'NGN',
+    variants: Array.isArray(product.variants) ? product.variants.map(normalizeVisibleCjVariant) : product.variants,
   };
 }

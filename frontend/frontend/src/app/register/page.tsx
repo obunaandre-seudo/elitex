@@ -10,10 +10,13 @@ import Logo from '@/components/Logo';
 import AmbientBackground from '@/components/AmbientBackground';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
+import { useCartStore } from '@/store/cartStore';
+import { mergeGuestCartToAccount } from '@/lib/guestCart';
 
 export default function RegisterPage() {
   const router = useRouter();
   const setSession = useAuthStore((s) => s.setSession);
+  const guestItems = useCartStore((s) => s.guestItems);
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', confirm: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -49,6 +52,7 @@ export default function RegisterPage() {
 
       if (data?.user && data?.accessToken) {
         setSession(data.user, data.accessToken);
+        await mergeGuestCartToAccount(guestItems);
       }
 
       toast.success(data?.message || 'Account created successfully.');

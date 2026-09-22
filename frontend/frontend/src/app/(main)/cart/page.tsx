@@ -7,6 +7,7 @@ import { Trash2, Minus, Plus, ArrowRight, ShoppingBag } from 'lucide-react';
 import { api } from '@/lib/api';
 import { formatNaira } from '@/lib/currency';
 import { useCartStore } from '@/store/cartStore';
+import { useAuthStore } from '@/store/authStore';
 
 function resolveProductImage(product: { images?: { url?: string }[] }) {
   let image = '/product-placeholder.svg';
@@ -20,33 +21,50 @@ function resolveProductImage(product: { images?: { url?: string }[] }) {
   return image;
 }
 
+function getLinePrice(item: any) {
+  return Number(item.product.sellingPrice) + Number(item.variant?.priceDelta ?? 0);
+}
+
 export default function CartPage() {
   const queryClient = useQueryClient();
+  const user = useAuthStore((s) => s.user);
   const setItemCount = useCartStore((s) => s.setItemCount);
+  const guestItems = useCartStore((s) => s.guestItems);
+  const updateGuestQuantity = useCartStore((s) => s.updateGuestQuantity);
+  const removeGuestItem = useCartStore((s) => s.removeGuestItem);
 
   const { data, isLoading } = useQuery({
     queryKey: ['cart'],
     queryFn: async () => {
       const res = await api.get('/cart');
-      setItemCount(res.data.items.length);
+      setItemCount((res.data.items ?? []).reduce((sum: number, item: any) => sum + Number(item.quantity ?? 0), 0));
       return res.data.items as any[];
     },
+    enabled: Boolean(user),
   });
 
   async function updateQty(itemId: string, quantity: number) {
     if (quantity < 1) return;
+    if (!user) {
+      updateGuestQuantity(itemId, quantity);
+      return;
+    }
     await api.patch(`/cart/items/${itemId}`, { quantity });
     queryClient.invalidateQueries({ queryKey: ['cart'] });
   }
 
   async function removeItem(itemId: string) {
+    if (!user) {
+      removeGuestItem(itemId);
+      return;
+    }
     await api.delete(`/cart/items/${itemId}`);
     queryClient.invalidateQueries({ queryKey: ['cart'] });
   }
 
-  const items = data ?? [];
+  const items = user ? (data ?? []) : guestItems;
   const subtotal = items.reduce(
-    (sum, item) => sum + (Number(item.product.sellingPrice) + Number(item.variant?.priceDelta ?? 0)) * item.quantity,
+    (sum, item) => sum + getLinePrice(item) * item.quantity,
     0
   );
 
@@ -54,7 +72,7 @@ export default function CartPage() {
     <main className="mx-auto max-w-6xl px-6 py-16">
       <h1 className="font-display text-4xl font-semibold text-ivory">Your Cart</h1>
 
-      {isLoading ? (
+      {user && isLoading ? (
         <div className="mt-10 space-y-4">
           {[1, 2, 3].map((i) => <div key={i} className="skeleton h-28 rounded-2xl" />)}
         </div>
@@ -89,7 +107,7 @@ export default function CartPage() {
                       {item.product.title}
                     </Link>
                     {item.variant && <p className="mt-0.5 text-xs text-slate">{item.variant.name}</p>}
-                    <p className="mt-1 font-display text-gold">{formatNaira(Number(item.product.sellingPrice) + Number(item.variant?.priceDelta ?? 0))}</p>
+                    <p className="mt-1 font-display text-gold">{formatNaira(getLinePrice(item))}</p>
                   </div>
                   <div className="flex items-center rounded-full border border-white/10">
                     <button onClick={() => updateQty(item.id, item.quantity - 1)} className="p-2 text-ivory hover:text-gold"><Minus size={14} /></button>
@@ -118,9 +136,15 @@ export default function CartPage() {
               <span>Total</span>
               <span className="text-gold">{formatNaira(subtotal + (subtotal > 50000 ? 0 : 2000))}</span>
             </div>
-            <Link href="/checkout" className="btn-gold mt-6 w-full">
-              Checkout <ArrowRight size={16} />
-            </Link>
+            {user ? (
+              <Link href="/checkout" className="btn-gold mt-6 w-full">
+                Checkout <ArrowRight size={16} />
+              </Link>
+            ) : (
+              <Link href="/login" className="btn-gold mt-6 w-full">
+                Sign in to Checkout <ArrowRight size={16} />
+              </Link>
+            )}
           </div>
         </div>
       )}

@@ -1,14 +1,18 @@
 'use client';
 import { useQuery } from '@tanstack/react-query';
+import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { api } from '@/lib/api';
+import { formatNaira } from '@/lib/currency';
+import { useAuthStore } from '@/store/authStore';
 
 async function loadCart() {
   return (await api.get('/cart')).data.items as any[];
 }
 
 export default function CheckoutPage() {
-  const { data: cart } = useQuery({ queryKey: ['cart'], queryFn: loadCart });
+  const user = useAuthStore((s) => s.user);
+  const { data: cart } = useQuery({ queryKey: ['cart'], queryFn: loadCart, enabled: Boolean(user) });
   const subtotal = (cart ?? []).reduce((sum, item) => sum + (Number(item.product.sellingPrice) + Number(item.variant?.priceDelta ?? 0)) * item.quantity, 0);
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
@@ -41,7 +45,17 @@ export default function CheckoutPage() {
   return (
     <main className='mx-auto max-w-2xl px-6 py-16'>
       <h1 className='font-display text-4xl text-ivory'>Checkout</h1>
-      <p className='mt-2 text-slate'>Total: {subtotal}</p>
+      {!user ? (
+        <div className='mt-8 rounded-2xl border border-gold/20 bg-charcoal/50 p-6'>
+          <p className='text-ivory'>Sign in or create an account to continue to checkout.</p>
+          <div className='mt-5 flex flex-col gap-3 sm:flex-row'>
+            <Link href='/login' className='btn-gold'>Sign In</Link>
+            <Link href='/register' className='btn-ghost'>Create Account</Link>
+          </div>
+        </div>
+      ) : (
+      <>
+      <p className='mt-2 text-slate'>Total: {formatNaira(subtotal)}</p>
       <form onSubmit={submit} className='mt-8 space-y-3'>
         <input className='input-elite w-full' name='fullName' placeholder='Full name' />
         <input className='input-elite w-full' name='line1' placeholder='Address line 1' />
@@ -56,6 +70,8 @@ export default function CheckoutPage() {
         </div>
         <button type='submit' className='btn-gold w-full'>Place Order</button>
       </form>
+      </>
+      )}
     </main>
   );
 }

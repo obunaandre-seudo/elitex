@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { SlidersHorizontal } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useMinimumLoadingState } from '@/lib/useMinimumLoadingState';
+import { getCustomerCategoryLabel } from '@/lib/customerDisplay';
 import ProductCard, { ProductCardData } from '@/components/ProductCard';
 
 const sortOptions = [
@@ -104,7 +105,7 @@ function ShopInner() {
             onClick={() => updateCategory(c.slug)}
             className={category === c.slug ? 'rounded-full border border-gold bg-gold/10 px-4 py-1.5 text-xs text-gold transition-colors' : 'rounded-full border border-white/10 px-4 py-1.5 text-xs text-slate transition-colors hover:border-gold/40'}
           >
-            {c.name}
+            {getCustomerCategoryLabel(c)}
           </button>
         ))}
       </div>

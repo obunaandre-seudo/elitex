@@ -2,11 +2,16 @@
 import { Response, NextFunction } from 'express';
 import { prisma } from '../config/prisma';
 import { AppError } from '../middleware/errorHandler';
-import { normalizeVisibleCjProduct } from '../utils/productPricing';
+import { isManualProductId, normalizeVisibleCjProduct, normalizeVisibleCjVariant } from '../utils/productPricing';
 import { AuthedRequest } from '../middleware/auth';
 
-function applyVisiblePricing(product: any) {
-  return normalizeVisibleCjProduct(product);
+function applyVisiblePricing(item: any) {
+  const isManual = isManualProductId(item.product?.aliexpressId);
+  return {
+    ...item,
+    product: normalizeVisibleCjProduct(item.product),
+    variant: isManual ? item.variant : normalizeVisibleCjVariant(item.variant),
+  };
 }
 
 async function getOrCreateCart(userId: string) {
@@ -22,7 +27,7 @@ export async function getCart(req: AuthedRequest, res: Response, next: NextFunct
       where: { cartId: cart.id },
       include: { product: { include: { images: true } }, variant: true },
     });
-    res.json({ items: items.map((item) => ({ ...item, product: applyVisiblePricing(item.product) })) });
+    res.json({ items: items.map(applyVisiblePricing) });
   } catch (err) {
     next(err);
   }

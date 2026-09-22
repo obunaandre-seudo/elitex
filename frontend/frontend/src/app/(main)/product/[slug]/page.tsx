@@ -8,6 +8,7 @@ import { Heart, Minus, Plus, ShieldCheck, Truck, ZoomIn } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '@/lib/api';
 import { formatNaira } from '@/lib/currency';
+import { getCustomerCategoryLabel } from '@/lib/customerDisplay';
 import { useAuthStore } from '@/store/authStore';
 import { useCartStore } from '@/store/cartStore';
 import StarRating from '@/components/StarRating';
@@ -17,6 +18,7 @@ export default function ProductDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const user = useAuthStore((s) => s.user);
   const setItemCount = useCartStore((s) => s.setItemCount);
+  const addGuestItem = useCartStore((s) => s.addGuestItem);
   const [activeImage, setActiveImage] = useState(0);
   const [zoomed, setZoomed] = useState(false);
   const [variantId, setVariantId] = useState<string | null>(null);
@@ -32,13 +34,15 @@ export default function ProductDetailPage() {
 
   async function addToCart() {
     if (!user) {
-      toast.error('Please sign in to add items to your cart.');
+      const selectedVariant = data!.product.variants?.find((v: any) => v.id === variantId) ?? null;
+      addGuestItem(data!.product, selectedVariant, quantity);
+      toast.success('Added to cart.');
       return;
     }
     try {
       await api.post('/cart/items', { productId: data!.product.id, variantId, quantity });
       const cart = await api.get('/cart');
-      setItemCount(cart.data.items.length);
+      setItemCount((cart.data.items ?? []).reduce((sum: number, item: any) => sum + Number(item.quantity ?? 0), 0));
       toast.success('Added to cart.');
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Could not add to cart.');
@@ -120,7 +124,7 @@ export default function ProductDetailPage() {
         </div>
 
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-          {product.category && <p className="section-label mb-3">{product.category.name}</p>}
+          {product.category && <p className="section-label mb-3">{getCustomerCategoryLabel(product.category)}</p>}
           <h1 className="font-display text-3xl font-semibold text-ivory sm:text-4xl">{product.title}</h1>
           <div className="mt-3">
             <StarRating value={Number(product.ratingAverage)} count={product.ratingCount} />
