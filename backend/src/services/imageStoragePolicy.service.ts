@@ -66,7 +66,7 @@ export function getImageStoragePolicy(categorySlug: string, owner: ImageStorageO
   }
 
   if (categorySlug === SEXUAL_WELLNESS_CATEGORY_SLUG) {
-    return { categorySlug, allowCloudinaryUpload: false, requireExternalHttpsUrl: true };
+    return { categorySlug, allowCloudinaryUpload: false, requireExternalHttpsUrl: false };
   }
 
   return { categorySlug, allowCloudinaryUpload: true, requireExternalHttpsUrl: false };

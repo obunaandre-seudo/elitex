@@ -248,6 +248,7 @@ function ProductSync() {
           .map((url) => url.trim())
           .filter(Boolean)
           .forEach((url) => payload.append('imageUrls', url));
+        imageFiles.forEach((file) => payload.append('images', file));
       } else {
         imageFiles.forEach((file) => payload.append('images', file));
       }
@@ -378,17 +379,7 @@ function ProductSync() {
               </option>
             ))}
           </select>
-          {productCategorySlug === 'sexual-wellness' ? (
-            <textarea
-              value={externalImageUrls}
-              onChange={(e) => setExternalImageUrls(e.target.value)}
-              placeholder="External HTTPS image URLs, one per line"
-              rows={3}
-              className="input-elite md:col-span-2"
-            />
-          ) : (
-            <input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(e) => onFileChange(e.target.files)} className="input-elite md:col-span-2" />
-          )}
+          <input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(e) => onFileChange(e.target.files)} className="input-elite md:col-span-2" />
           <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Write-up about the product" rows={4} className="input-elite md:col-span-2" />
         </div>
 
@@ -396,7 +387,7 @@ function ProductSync() {
           <button onClick={handleCreateProduct} disabled={creating} className="btn-gold disabled:opacity-60">
             {creating ? 'Creating...' : 'Create Product'}
           </button>
-          <p className="text-xs text-slate">{productCategorySlug === 'sexual-wellness' ? 'Sexual Wellness images are saved from external HTTPS URLs only.' : 'Gift Ideas images are uploaded to Cloudinary.'}</p>
+          <p className="text-xs text-slate">{productCategorySlug === 'sexual-wellness' ? 'Choose image files; they are stored directly in the database.' : 'Gift Ideas images are uploaded to Cloudinary.'}</p>
         </div>
 
         {imagePreviews.length > 0 && (
@@ -454,17 +445,7 @@ function ProductSync() {
               </option>
             ))}
           </select>
-          {editCategorySlug === 'sexual-wellness' ? (
-            <textarea
-              value={editExternalImageUrls}
-              onChange={(e) => setEditExternalImageUrls(e.target.value)}
-              placeholder="External HTTPS image URLs, one per line"
-              rows={3}
-              className="input-elite md:col-span-2"
-            />
-          ) : (
-            <input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(e) => onEditFileChange(e.target.files)} className="input-elite md:col-span-2" />
-          )}
+          <input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(e) => onEditFileChange(e.target.files)} className="input-elite md:col-span-2" />
           <textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} placeholder="Write-up about the product" rows={4} className="input-elite md:col-span-2" />
         </div>
 

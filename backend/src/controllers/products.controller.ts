@@ -381,15 +381,15 @@ export async function createSexualWellnessProduct(req: AuthedRequest, res: Respo
 
     const imagePolicy = getImageStoragePolicy(categorySlug);
     const imageFiles = Array.isArray(req.files) ? req.files : [];
-    if (imageFiles.length) {
-      throw new AppError('Sexual Wellness products require external HTTPS image URLs. File uploads to Cloudinary are not allowed.');
-    }
 
     if (!title) throw new AppError('Product name is required.');
     if (!writeUp) throw new AppError('Product description is required.');
     if (!Number.isFinite(numericPrice) || numericPrice <= 0) throw new AppError('Product price must be greater than zero.');
 
     const externalImages = buildExternalProductImages(normalizeExternalImageUrls(imageUrls), imagePolicy);
+    const fileImages = imageFiles.map((file: any, position) => ({ url: `data:${file.mimetype};base64,${file.buffer.toString('base64')}`, publicId: null, position }));
+    const imageRows = fileImages.length ? fileImages : externalImages;
+    if (!imageRows.length) throw new AppError('Choose at least one image file.');
     const basePrice = Math.round(numericPrice * 100) / 100;
     const sellingPrice = Math.max(0, Math.round(basePrice * (1 - numericDiscount / 100) * 100) / 100);
     const aliexpressId = buildAdminProductId();
@@ -416,7 +416,7 @@ export async function createSexualWellnessProduct(req: AuthedRequest, res: Respo
           ratingAverage: 0,
           ratingCount: 0,
           categoryId: category.id,
-          images: { create: externalImages },
+          images: { create: imageRows },
         },
         include: { images: true, category: true, variants: true },
       });
