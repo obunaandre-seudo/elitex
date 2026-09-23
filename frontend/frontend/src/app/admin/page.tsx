@@ -248,6 +248,7 @@ function ProductSync() {
           .map((url) => url.trim())
           .filter(Boolean)
           .forEach((url) => payload.append('imageUrls', url));
+        imageFiles.forEach((file) => payload.append('images', file));
       } else {
         imageFiles.forEach((file) => payload.append('images', file));
       }
@@ -329,6 +330,7 @@ function ProductSync() {
           .map((url) => url.trim())
           .filter(Boolean)
           .forEach((url) => payload.append('imageUrls', url));
+        editImageFiles.forEach((file) => payload.append('images', file));
       } else {
         editImageFiles.forEach((file) => payload.append('images', file));
       }
@@ -396,7 +398,7 @@ function ProductSync() {
           <button onClick={handleCreateProduct} disabled={creating} className="btn-gold disabled:opacity-60">
             {creating ? 'Creating...' : 'Create Product'}
           </button>
-          <p className="text-xs text-slate">{productCategorySlug === 'sexual-wellness' ? 'Sexual Wellness images are saved from external HTTPS URLs only.' : 'Gift Ideas images are uploaded to Cloudinary.'}</p>
+          <p className="text-xs text-slate">{productCategorySlug === 'sexual-wellness' ? 'Sexual Wellness images are uploaded to Cloudinary.' : 'Gift Ideas images are uploaded to Cloudinary.'}</p>
         </div>
 
         {imagePreviews.length > 0 && (
@@ -472,7 +474,7 @@ function ProductSync() {
           <button onClick={handleUpdateProduct} disabled={editing || !editingProductId} className="btn-gold disabled:opacity-60">
             {editing ? 'Saving...' : 'Save Changes'}
           </button>
-          <p className="text-xs text-slate">{editCategorySlug === 'sexual-wellness' ? 'Sexual Wellness images are stored as external URLs with no Cloudinary public ID.' : 'Gift Ideas image changes use Cloudinary uploads.'}</p>
+          <p className="text-xs text-slate">{editCategorySlug === 'sexual-wellness' ? 'Sexual Wellness image changes use Cloudinary uploads.' : 'Gift Ideas image changes use Cloudinary uploads.'}</p>
         </div>
 
         {(editImagePreviews.length > 0 || editImageUrl) && (
