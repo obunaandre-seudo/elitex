@@ -22,6 +22,10 @@ function isAdminCreatedProduct(product: { aliexpressId: string | null }) {
   return isAdminCreatedProductId(product.aliexpressId);
 }
 
+function isAdminCreatedSexualWellnessProduct(product: { aliexpressId: string | null; category?: { slug?: string | null } | null }) {
+  return isAdminCreatedProduct(product) && product.category?.slug === SEXUAL_WELLNESS_CATEGORY_SLUG;
+}
+
 function mergeCatalog(products: Array<any>) {
   const adminCreated: any[] = [];
   const regular: any[] = [];
@@ -428,7 +432,7 @@ export async function createSexualWellnessProduct(req: AuthedRequest, res: Respo
       });
 
       return createdProduct;
-    });
+    }, { maxWait: 10000, timeout: 20000 });
 
     res.status(201).json({ product, message: 'Sexual Wellness product created successfully.' });
   } catch (err) {
