@@ -3,8 +3,13 @@ export const PRODUCT_IMAGE_PLACEHOLDER = '/product-placeholder.svg';
 export function isValidProductImageUrl(value: string | null | undefined) {
   if (!value) return false;
 
+  const trimmed = value.trim();
+  if (/^data:image\/(jpeg|jpg|png|webp|gif);base64,[a-z0-9+/]+=*$/i.test(trimmed)) {
+    return true;
+  }
+
   try {
-    const url = new URL(value.trim());
+    const url = new URL(trimmed);
     return url.protocol === 'https:' && Boolean(url.hostname);
   } catch {
     return false;
