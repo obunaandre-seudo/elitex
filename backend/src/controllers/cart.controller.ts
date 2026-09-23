@@ -2,15 +2,15 @@
 import { Response, NextFunction } from 'express';
 import { prisma } from '../config/prisma';
 import { AppError } from '../middleware/errorHandler';
-import { isManualProductId, normalizeVisibleCjProduct, normalizeVisibleCjVariant } from '../utils/productPricing';
+import { isAdminCreatedProductId, normalizeVisibleCjProduct, normalizeVisibleCjVariant } from '../utils/productPricing';
 import { AuthedRequest } from '../middleware/auth';
 
 function applyVisiblePricing(item: any) {
-  const isManual = isManualProductId(item.product?.aliexpressId);
+  const isAdminCreated = isAdminCreatedProductId(item.product?.aliexpressId);
   return {
     ...item,
     product: normalizeVisibleCjProduct(item.product),
-    variant: isManual ? item.variant : normalizeVisibleCjVariant(item.variant),
+    variant: isAdminCreated ? item.variant : normalizeVisibleCjVariant(item.variant),
   };
 }
 

@@ -6,6 +6,7 @@ import { Heart } from 'lucide-react';
 import { motion } from 'framer-motion';
 import StarRating from './StarRating';
 import { formatNaira } from '@/lib/currency';
+import { getProductImageUrl } from '@/lib/productImages';
 
 export interface ProductCardData {
   id: string;
@@ -15,14 +16,11 @@ export interface ProductCardData {
   basePrice?: number | string;
   ratingAverage: number | string;
   ratingCount: number;
-  images: { url: string }[];
+  images: { url?: string | null }[];
 }
 
-export default function ProductCard({ product, index = 0, fallbackImage = '/product-placeholder.svg' }: { product: ProductCardData; index?: number; fallbackImage?: string | StaticImageData }) {
-  let image: string | StaticImageData = fallbackImage;
-  if (product.images && product.images[0] && product.images[0].url) {
-    image = product.images[0].url;
-  }
+export default function ProductCard({ product, index = 0 }: { product: ProductCardData; index?: number; fallbackImage?: string | StaticImageData }) {
+  const image = getProductImageUrl(product);
 
   const price = Number(product.sellingPrice);
   const basePrice = product.basePrice !== undefined ? Number(product.basePrice) : null;

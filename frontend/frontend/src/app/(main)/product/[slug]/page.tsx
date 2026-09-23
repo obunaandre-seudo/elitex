@@ -13,6 +13,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useCartStore } from '@/store/cartStore';
 import StarRating from '@/components/StarRating';
 import ProductCard, { ProductCardData } from '@/components/ProductCard';
+import { PRODUCT_IMAGE_PLACEHOLDER, isValidProductImageUrl } from '@/lib/productImages';
 
 export default function ProductDetailPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -69,13 +70,14 @@ export default function ProductDetailPage() {
   const images: string[] = [];
   if (product.images) {
     for (let i = 0; i < product.images.length; i += 1) {
-      if (product.images[i] && product.images[i].url) {
-        images.push(product.images[i].url);
+      const imageUrl = product.images[i]?.url?.trim();
+      if (isValidProductImageUrl(imageUrl)) {
+        images.push(imageUrl);
       }
     }
   }
   if (!images.length) {
-    images.push('/product-placeholder.svg');
+    images.push(PRODUCT_IMAGE_PLACEHOLDER);
   }
 
   const basePrice = Number(product.basePrice ?? product.sellingPrice);

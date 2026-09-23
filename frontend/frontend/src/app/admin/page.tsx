@@ -11,15 +11,8 @@ import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianG
 import toast from 'react-hot-toast';
 import { api } from '@/lib/api';
 import { formatNaira } from '@/lib/currency';
+import { getProductImageUrl } from '@/lib/productImages';
 import Logo from '@/components/Logo';
-
-function resolveProductImage(product: { images?: { url?: string }[] }) {
-  let image = '/product-placeholder.svg';
-  if (product.images && product.images[0] && product.images[0].url) {
-    image = product.images[0].url;
-  }
-  return image;
-}
 
 type Tab = 'overview' | 'sync' | 'orders' | 'customers' | 'sessions' | 'settings';
 
@@ -192,9 +185,10 @@ function ProductSync() {
   const [stock, setStock] = useState('1');
   const [discountPercent, setDiscountPercent] = useState('0');
   const [description, setDescription] = useState('');
-  const [manualCategorySlug, setManualCategorySlug] = useState('sexual-wellness');
+  const [productCategorySlug, setProductCategorySlug] = useState('sexual-wellness');
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [externalImageUrls, setExternalImageUrls] = useState('');
   const [editingProductId, setEditingProductId] = useState('');
   const [editName, setEditName] = useState('');
   const [editPrice, setEditPrice] = useState('');
@@ -205,6 +199,7 @@ function ProductSync() {
   const [editImageFiles, setEditImageFiles] = useState<File[]>([]);
   const [editImagePreviews, setEditImagePreviews] = useState<string[]>([]);
   const [editImageUrl, setEditImageUrl] = useState('');
+  const [editExternalImageUrls, setEditExternalImageUrls] = useState('');
   const [editing, setEditing] = useState(false);
   const queryClient = useQueryClient();
 
@@ -237,7 +232,7 @@ function ProductSync() {
     }
   }
 
-  async function handleCreateManualProduct() {
+  async function handleCreateProduct() {
     setCreating(true);
     try {
       const payload = new FormData();
@@ -246,23 +241,33 @@ function ProductSync() {
       payload.append('stock', String(Number(stock)));
       payload.append('description', description);
       payload.append('discountPercent', String(Number(discountPercent || 0)));
-      payload.append('categorySlug', manualCategorySlug);
-      imageFiles.forEach((file) => payload.append('images', file));
+      payload.append('categorySlug', productCategorySlug);
+      if (productCategorySlug === 'sexual-wellness') {
+        externalImageUrls
+          .split('\n')
+          .map((url) => url.trim())
+          .filter(Boolean)
+          .forEach((url) => payload.append('imageUrls', url));
+      } else {
+        imageFiles.forEach((file) => payload.append('images', file));
+      }
 
-      const res = await api.post('/admin/products', payload);
-      toast.success(res.data.message || 'Manual product created.');
+      const endpoint = productCategorySlug === 'sexual-wellness' ? '/admin/products/sexual-wellness' : '/admin/products';
+      const res = await api.post(endpoint, payload);
+      toast.success(res.data.message || 'Product created.');
       setName('');
       setPrice('');
       setStock('1');
       setDiscountPercent('0');
       setDescription('');
-      setManualCategorySlug('sexual-wellness');
+      setProductCategorySlug('sexual-wellness');
       imagePreviews.forEach((preview) => URL.revokeObjectURL(preview));
       setImageFiles([]);
       setImagePreviews([]);
+      setExternalImageUrls('');
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to create manual product.');
+      toast.error(err.response?.data?.error || 'Failed to create product.');
     } finally {
       setCreating(false);
     }
@@ -282,8 +287,8 @@ function ProductSync() {
     setEditImagePreviews(nextFiles.map((file) => URL.createObjectURL(file)));
   }
 
-  const manualProducts = (products ?? []).filter((p: any) => String(p.aliexpressId ?? '').startsWith('MANUAL-'));
-  const manualCategoryOptions = [
+  const adminProducts = (products ?? []).filter((p: any) => ['MANUAL-', 'ADMIN-'].some((prefix) => String(p.aliexpressId ?? '').startsWith(prefix)));
+  const productCategoryOptions = [
     { label: 'Sexual Wellness', value: 'sexual-wellness' },
     { label: 'Gift Ideas', value: 'gift-ideas' },
   ];
@@ -300,11 +305,12 @@ function ProductSync() {
     setEditImageFiles([]);
     setEditImagePreviews([]);
     setEditImageUrl(product.images?.[0]?.url ?? '');
+    setEditExternalImageUrls((product.images ?? []).map((image: any) => image.url).filter(Boolean).join('\n'));
   }
 
-  async function handleUpdateManualProduct() {
+  async function handleUpdateProduct() {
     if (!editingProductId) {
-      toast.error('Select a manual product to edit first.');
+      toast.error('Select an admin-created product to edit first.');
       return;
     }
 
@@ -317,14 +323,22 @@ function ProductSync() {
       payload.append('description', editDescription);
       payload.append('discountPercent', String(Number(editDiscountPercent || 0)));
       payload.append('categorySlug', editCategorySlug);
-      editImageFiles.forEach((file) => payload.append('images', file));
+      if (editCategorySlug === 'sexual-wellness') {
+        editExternalImageUrls
+          .split('\n')
+          .map((url) => url.trim())
+          .filter(Boolean)
+          .forEach((url) => payload.append('imageUrls', url));
+      } else {
+        editImageFiles.forEach((file) => payload.append('images', file));
+      }
 
       const res = await api.patch(`/admin/products/${editingProductId}`, payload);
-      toast.success(res.data.message || 'Manual product updated.');
+      toast.success(res.data.message || 'Product updated.');
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard'] });
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to update manual product.');
+      toast.error(err.response?.data?.error || 'Failed to update product.');
     } finally {
       setEditing(false);
     }
@@ -334,35 +348,55 @@ function ProductSync() {
     <div>
       <h1 className="font-display text-2xl font-semibold text-ivory">Premium Collection</h1>
       <p className="mt-1 text-sm text-slate">
-        Create a manual sexual wellness product or refresh the Premium Collection. Manual items are shown first in the sexual wellness catalog.
+        Create Sexual Wellness products from external HTTPS images, add Gift Ideas with uploads, or refresh the Premium Collection.
       </p>
 
       <div className="mt-6 rounded-2xl border border-gold/15 bg-charcoal/50 p-6">
         <div className="flex items-center gap-2 text-gold">
           <PlusCircle size={18} />
-          <h2 className="font-display text-lg">Create Manual Product</h2>
+          <h2 className="font-display text-lg">Create Product</h2>
         </div>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Product name" className="input-elite" />
           <input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Price" type="number" step="0.01" min="0" className="input-elite" />
           <input value={stock} onChange={(e) => setStock(e.target.value)} placeholder="Amount available" type="number" min="0" className="input-elite" />
           <input value={discountPercent} onChange={(e) => setDiscountPercent(e.target.value)} placeholder="Discount % (optional)" type="number" step="0.1" min="0" max="100" className="input-elite" />
-          <select value={manualCategorySlug} onChange={(e) => setManualCategorySlug(e.target.value)} className="input-elite">
-            {manualCategoryOptions.map((option) => (
+          <select
+            value={productCategorySlug}
+            onChange={(e) => {
+              setProductCategorySlug(e.target.value);
+              imagePreviews.forEach((preview) => URL.revokeObjectURL(preview));
+              setImageFiles([]);
+              setImagePreviews([]);
+              setExternalImageUrls('');
+            }}
+            className="input-elite"
+          >
+            {productCategoryOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
             ))}
           </select>
-          <input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(e) => onFileChange(e.target.files)} className="input-elite md:col-span-2" />
+          {productCategorySlug === 'sexual-wellness' ? (
+            <textarea
+              value={externalImageUrls}
+              onChange={(e) => setExternalImageUrls(e.target.value)}
+              placeholder="External HTTPS image URLs, one per line"
+              rows={3}
+              className="input-elite md:col-span-2"
+            />
+          ) : (
+            <input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(e) => onFileChange(e.target.files)} className="input-elite md:col-span-2" />
+          )}
           <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Write-up about the product" rows={4} className="input-elite md:col-span-2" />
         </div>
 
         <div className="mt-4 flex items-center gap-3">
-          <button onClick={handleCreateManualProduct} disabled={creating} className="btn-gold disabled:opacity-60">
-            {creating ? 'CreatingÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦' : 'Create Product'}
+          <button onClick={handleCreateProduct} disabled={creating} className="btn-gold disabled:opacity-60">
+            {creating ? 'Creating...' : 'Create Product'}
           </button>
-          <p className="text-xs text-slate">Manual products can be saved in Sexual Wellness or Gift Ideas and will surface before synced items.</p>
+          <p className="text-xs text-slate">{productCategorySlug === 'sexual-wellness' ? 'Sexual Wellness images are saved from external HTTPS URLs only.' : 'Gift Ideas images are uploaded to Cloudinary.'}</p>
         </div>
 
         {imagePreviews.length > 0 && (
@@ -380,22 +414,22 @@ function ProductSync() {
       <div className="mt-6 rounded-2xl border border-gold/15 bg-charcoal/50 p-6">
         <div className="flex items-center gap-2 text-gold">
           <SettingsIcon size={18} />
-          <h2 className="font-display text-lg">Edit Manual Product</h2>
+          <h2 className="font-display text-lg">Edit Product</h2>
         </div>
-        <p className="mt-2 text-sm text-slate">Pick one of the manually created products below, update the details, and save the changes.</p>
+        <p className="mt-2 text-sm text-slate">Pick one admin-created product below, update the details, and save the changes.</p>
 
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <select
             value={editingProductId}
             onChange={(e) => {
-              const product = manualProducts.find((item: any) => item.id === e.target.value);
+              const product = adminProducts.find((item: any) => item.id === e.target.value);
               setEditingProductId(e.target.value);
               if (product) startEditingProduct(product);
             }}
             className="input-elite md:col-span-2"
           >
-            <option value="">Select a manual product</option>
-            {manualProducts.map((product: any) => (
+            <option value="">Select a product</option>
+            {adminProducts.map((product: any) => (
               <option key={product.id} value={product.id}>{product.title}</option>
             ))}
           </select>
@@ -403,22 +437,42 @@ function ProductSync() {
           <input value={editPrice} onChange={(e) => setEditPrice(e.target.value)} placeholder="Price" type="number" step="0.01" min="0" className="input-elite" />
           <input value={editStock} onChange={(e) => setEditStock(e.target.value)} placeholder="Amount available" type="number" min="0" className="input-elite" />
           <input value={editDiscountPercent} onChange={(e) => setEditDiscountPercent(e.target.value)} placeholder="Discount % (optional)" type="number" step="0.1" min="0" max="100" className="input-elite" />
-          <select value={editCategorySlug} onChange={(e) => setEditCategorySlug(e.target.value)} className="input-elite">
-            {manualCategoryOptions.map((option) => (
+          <select
+            value={editCategorySlug}
+            onChange={(e) => {
+              setEditCategorySlug(e.target.value);
+              editImagePreviews.forEach((preview) => URL.revokeObjectURL(preview));
+              setEditImageFiles([]);
+              setEditImagePreviews([]);
+              setEditExternalImageUrls('');
+            }}
+            className="input-elite"
+          >
+            {productCategoryOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
             ))}
           </select>
-          <input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(e) => onEditFileChange(e.target.files)} className="input-elite md:col-span-2" />
+          {editCategorySlug === 'sexual-wellness' ? (
+            <textarea
+              value={editExternalImageUrls}
+              onChange={(e) => setEditExternalImageUrls(e.target.value)}
+              placeholder="External HTTPS image URLs, one per line"
+              rows={3}
+              className="input-elite md:col-span-2"
+            />
+          ) : (
+            <input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(e) => onEditFileChange(e.target.files)} className="input-elite md:col-span-2" />
+          )}
           <textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} placeholder="Write-up about the product" rows={4} className="input-elite md:col-span-2" />
         </div>
 
         <div className="mt-4 flex items-center gap-3">
-          <button onClick={handleUpdateManualProduct} disabled={editing || !editingProductId} className="btn-gold disabled:opacity-60">
-            {editing ? 'SavingÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦' : 'Save Changes'}
+          <button onClick={handleUpdateProduct} disabled={editing || !editingProductId} className="btn-gold disabled:opacity-60">
+            {editing ? 'Saving...' : 'Save Changes'}
           </button>
-          <p className="text-xs text-slate">Only products created manually can be updated here, and you can move them between Sexual Wellness and Gift Ideas.</p>
+          <p className="text-xs text-slate">{editCategorySlug === 'sexual-wellness' ? 'Sexual Wellness images are stored as external URLs with no Cloudinary public ID.' : 'Gift Ideas image changes use Cloudinary uploads.'}</p>
         </div>
 
         {(editImagePreviews.length > 0 || editImageUrl) && (
@@ -441,7 +495,7 @@ function ProductSync() {
           className="input-elite flex-1"
         />
         <button onClick={runSync} disabled={syncing} className="btn-gold shrink-0 disabled:opacity-60">
-          <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} /> {syncing ? 'SyncingÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦' : 'Run Sync'}
+          <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} /> {syncing ? 'Syncing...' : 'Run Sync'}
         </button>
       </div>
 
@@ -461,10 +515,10 @@ function ProductSync() {
                 {filteredProducts.map((p: any) => (
                   <tr key={p.id} className="border-t border-white/5">
                     <td className="flex items-center gap-3 py-3 text-ivory">
-                      <img src={resolveProductImage(p)} className={'h-9 w-9 rounded-lg object-cover'} alt={p.title} />
+                      <img src={getProductImageUrl(p)} className={'h-9 w-9 rounded-lg object-cover'} alt={p.title} />
                       <div>
                         <span className="line-clamp-1 max-w-[220px]">{p.title}</span>
-                        {String(p.aliexpressId ?? '').startsWith('MANUAL-') && <span className="mt-1 block text-[11px] uppercase tracking-wide text-gold">Manual</span>}
+                        {['MANUAL-', 'ADMIN-'].some((prefix) => String(p.aliexpressId ?? '').startsWith(prefix)) && <span className="mt-1 block text-[11px] uppercase tracking-wide text-gold">Admin</span>}
                       </div>
                     </td>
                     <td className="py-3 text-slate">{formatNaira(Number(p.basePrice))}</td>
@@ -508,7 +562,7 @@ function OrdersPanel() {
             <div key={o.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/5 bg-charcoal/50 p-5">
               <div>
                 <p className="font-display text-ivory">#{o.orderNumber}</p>
-                <p className="text-xs text-slate">{o.user.firstName} {o.user.lastName} ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {formatNaira(Number(o.grandTotal))}</p>
+                <p className="text-xs text-slate">{o.user.firstName} {o.user.lastName} - {formatNaira(Number(o.grandTotal))}</p>
               </div>
               <select
                 defaultValue={o.status}
@@ -550,7 +604,7 @@ function SessionsPanel() {
             <div key={session.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white/[0.02] px-4 py-3">
               <div>
                 <p className="font-display text-ivory">{session.user.firstName} {session.user.lastName}</p>
-                <p className="text-xs text-slate">{session.user.email} � {session.user.role}</p>
+                <p className="text-xs text-slate">{session.user.email} ? {session.user.role}</p>
               </div>
               <p className="text-xs text-slate">Signed in {new Date(session.createdAt).toLocaleString()}</p>
             </div>
@@ -593,7 +647,7 @@ function CustomersPanel() {
                 <tr key={u.id} className="border-t border-white/5">
                   <td className="py-3 text-ivory">{u.firstName} {u.lastName}</td>
                   <td className="py-3 text-slate">{u.email}</td>
-                  <td className="py-3">{u.isEmailVerified ? <CheckCircle2 size={16} className="text-emerald-300" /> : <span className="text-slate">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â</span>}</td>
+                  <td className="py-3">{u.isEmailVerified ? <CheckCircle2 size={16} className="text-emerald-300" /> : <span className="text-slate">No</span>}</td>
                   <td className="py-3 text-gold">{u.role}</td>
                   <td className="py-3">
                     <button onClick={() => toggleRole(u.id, u.role)} className="text-xs text-gold underline underline-offset-2">
@@ -661,7 +715,7 @@ async function saveMarkup() {
 
       <div className="mt-6 rounded-2xl border border-gold/15 bg-charcoal/50 p-6">
         <div className="flex items-center gap-2 text-gold"><Percent size={18} /><h2 className="font-display text-lg">Default Markup Percentage</h2></div>
-        <p className="mt-2 text-sm text-slate">Applied automatically to every synced Premium Collection product. Manual products keep their own prices.</p>
+        <p className="mt-2 text-sm text-slate">Applied automatically to every synced Premium Collection product. Admin-created products keep their own prices.</p>
         <div className="mt-4 flex items-center gap-3">
           <input
             type="number" step="0.1" min="0" value={markup}
@@ -670,7 +724,7 @@ async function saveMarkup() {
           />
           <span className="text-slate">%</span>
           <button onClick={saveMarkup} disabled={saving} className="btn-gold disabled:opacity-60">
-            {saving ? 'SavingÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦' : 'Save Markup'}
+            {saving ? 'Saving...' : 'Save Markup'}
           </button>
         </div>
       </div>
@@ -688,7 +742,7 @@ async function saveMarkup() {
             className="input-elite w-full sm:w-56"
           />
           <button onClick={saveCjRate} disabled={savingRate} className="btn-gold disabled:opacity-60">
-            {savingRate ? 'SavingÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦' : 'Save Rate'}
+            {savingRate ? 'Saving...' : 'Save Rate'}
           </button>
         </div>
       </div>
@@ -699,7 +753,7 @@ async function saveMarkup() {
           {(logs ?? []).map((log: any) => (
             <div key={log.id} className="flex items-center justify-between rounded-lg bg-white/[0.02] px-4 py-2.5 text-sm">
               <span className="text-ivory">{log.action}</span>
-              <span className="text-xs text-slate">{log.user ? `${log.user.firstName} ${log.user.lastName}` : 'System'} ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· {new Date(log.createdAt).toLocaleString()}</span>
+              <span className="text-xs text-slate">{log.user ? `${log.user.firstName} ${log.user.lastName}` : 'System'} - {new Date(log.createdAt).toLocaleString()}</span>
             </div>
           ))}
         </div>
@@ -729,6 +783,7 @@ async function saveMarkup() {
     </div>
   );
 }
+
 
 
 

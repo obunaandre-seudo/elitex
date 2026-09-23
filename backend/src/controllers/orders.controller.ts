@@ -4,15 +4,15 @@ import { AppError } from '../middleware/errorHandler';
 import { AuthedRequest } from '../middleware/auth';
 import { sendOrderConfirmationEmail, sendShippingUpdateEmail } from '../utils/mailer';
 import { createPaymentIntent } from '../utils/payments';
-import { isManualProductId, normalizeVisibleCjProduct, normalizeVisibleCjVariant } from '../utils/productPricing';
+import { isAdminCreatedProductId, normalizeVisibleCjProduct, normalizeVisibleCjVariant } from '../utils/productPricing';
 import { isCJLinkedProduct } from '../utils/cjOrders';
 
 function applyVisiblePricing(item: any) {
-  const isManual = isManualProductId(item.product?.aliexpressId);
+  const isAdminCreated = isAdminCreatedProductId(item.product?.aliexpressId);
   return {
     ...item,
     product: normalizeVisibleCjProduct(item.product),
-    variant: isManual ? item.variant : normalizeVisibleCjVariant(item.variant),
+    variant: isAdminCreated ? item.variant : normalizeVisibleCjVariant(item.variant),
   };
 }
 

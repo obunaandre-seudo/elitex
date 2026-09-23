@@ -1,6 +1,7 @@
 ﻿import { env } from '../config/env';
 
 export const MANUAL_PRODUCT_PREFIX = 'MANUAL-';
+export const ADMIN_PRODUCT_PREFIX = 'ADMIN-';
 export const CJ_PRODUCT_MARKUP_PERCENT = 35;
 export const CJ_CUSTOMER_PRICE_MULTIPLIER = 2000;
 const DEFAULT_CJ_USD_TO_NGN_RATE = 1600;
@@ -18,6 +19,10 @@ export function isManualProductId(aliexpressId?: string | null) {
   return Boolean(aliexpressId && aliexpressId.startsWith(MANUAL_PRODUCT_PREFIX));
 }
 
+export function isAdminCreatedProductId(aliexpressId?: string | null) {
+  return Boolean(aliexpressId && (aliexpressId.startsWith(MANUAL_PRODUCT_PREFIX) || aliexpressId.startsWith(ADMIN_PRODUCT_PREFIX)));
+}
+
 export function getCjUsdToNgnRate() {
   const rate = Number(env.cj.usdToNgnRate ?? DEFAULT_CJ_USD_TO_NGN_RATE);
   return Number.isFinite(rate) && rate > 0 ? rate : DEFAULT_CJ_USD_TO_NGN_RATE;
@@ -28,7 +33,7 @@ export function convertCjUsdToNgn(value: unknown) {
 }
 
 export function getDisplayedCjPrice(basePrice: unknown, aliexpressId?: string | null, sellingPrice?: unknown) {
-  if (isManualProductId(aliexpressId)) {
+  if (isAdminCreatedProductId(aliexpressId)) {
     return roundCurrency(toNumber(sellingPrice ?? basePrice));
   }
 
@@ -59,7 +64,7 @@ export function normalizeVisibleCjProduct(product: any) {
     return product;
   }
 
-  if (isManualProductId(product.aliexpressId)) {
+  if (isAdminCreatedProductId(product.aliexpressId)) {
     return {
       ...product,
       basePrice: toNumber(product.basePrice),

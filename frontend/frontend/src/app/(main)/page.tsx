@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, ShieldCheck, Truck, RefreshCcw, Sparkles } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useMinimumLoadingState } from '@/lib/useMinimumLoadingState';
+import { getProductImageUrl } from '@/lib/productImages';
 import AmbientBackground from '@/components/AmbientBackground';
 import ProductCard, { ProductCardData } from '@/components/ProductCard';
 import tenImage from '../../../ten.png';
@@ -14,7 +15,6 @@ import accessoriesImage from '../../../accessories.jpg';
 import downloadImage from '../../../download.webp';
 import viberatorImage from '../../../viberator.jpg';
 
-const showcaseImages: StaticImageData[] = [tenImage, viberatorImage, accessoriesImage, downloadImage];
 const categoryShowcase = [
   { name: 'Sexual Wellness', slug: 'sexual-wellness', image: viberatorImage },
   { name: 'Gift Ideas', slug: 'gift-ideas', image: accessoriesImage },
@@ -39,7 +39,7 @@ function useProducts(params: Record<string, string> = {}) {
 
 function CategoryCard({ category, index }: { category: (typeof categoryShowcase)[number]; index: number }) {
   const query = useProducts({ category: category.slug, sort: 'newest', pageSize: '1' });
-  const image = query.data?.[0]?.images?.[0]?.url || category.image.src;
+  const image = query.data?.[0] ? getProductImageUrl(query.data[0]) : category.image.src;
   const title = query.data?.[0]?.title ? category.name + ' - ' + query.data[0].title : category.name;
 
   return (
@@ -132,5 +132,5 @@ function ProductGrid({ query, columns = 4, emptyHint }: { query: ReturnType<type
     return <div className='rounded-2xl border border-dashed border-white/10 py-16 text-center'><p className='text-slate'>No products yet.</p>{emptyHint && <p className='mt-2 text-sm text-slate/70'>{emptyHint}</p>}</div>;
   }
 
-  return <div className={columns === 3 ? 'grid grid-cols-2 gap-5 sm:grid-cols-3' : 'grid grid-cols-2 gap-5 sm:grid-cols-4'}>{query.data.map((p, i) => <ProductCard key={p.id} product={p} index={i} fallbackImage={showcaseImages[i % showcaseImages.length]} />)}</div>;
+  return <div className={columns === 3 ? 'grid grid-cols-2 gap-5 sm:grid-cols-3' : 'grid grid-cols-2 gap-5 sm:grid-cols-4'}>{query.data.map((p, i) => <ProductCard key={p.id} product={p} index={i} />)}</div>;
 }

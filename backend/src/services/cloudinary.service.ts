@@ -1,6 +1,7 @@
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 import { env } from '../config/env';
 import { AppError } from '../middleware/errorHandler';
+import { ImageStoragePolicy, assertCloudinaryUploadAllowed } from './imageStoragePolicy.service';
 
 export interface UploadedCloudinaryImage {
   secureUrl: string;
@@ -51,49 +52,18 @@ function uploadBuffer(buffer: Buffer, folder: string): Promise<UploadApiResponse
   });
 }
 
-export async function uploadProductImages(files: Express.Multer.File[], folderKey: string): Promise<UploadedCloudinaryImage[]> {
+export async function uploadProductImages(
+  files: Express.Multer.File[],
+  folderKey: string,
+  policy: ImageStoragePolicy
+): Promise<UploadedCloudinaryImage[]> {
+  assertCloudinaryUploadAllowed(policy);
   const folder = `elite-x-shop/products/${folderKey}`;
   const uploaded: UploadedCloudinaryImage[] = [];
 
   try {
     for (const file of files) {
       const result = await uploadBuffer(file.buffer, folder);
-      uploaded.push({
-        secureUrl: result.secure_url,
-        publicId: result.public_id,
-      });
-    }
-
-    return uploaded;
-  } catch (err) {
-    await deleteCloudinaryImages(uploaded.map((image) => image.publicId));
-    throw err;
-  }
-}
-
-export async function uploadProductImagesFromUrls(
-  imageUrls: string[],
-  folderKey: string
-): Promise<UploadedCloudinaryImage[]> {
-  ensureCloudinaryConfigured();
-
-  const folder = `elite-x-shop/products/${folderKey}`;
-  const uploaded: UploadedCloudinaryImage[] = [];
-
-  try {
-    for (const imageUrl of imageUrls) {
-      if (!imageUrl || !/^https?:\/\//i.test(imageUrl)) {
-        continue;
-      }
-
-      const result = await cloudinary.uploader.upload(imageUrl, {
-        folder,
-        resource_type: 'image',
-        use_filename: true,
-        unique_filename: true,
-        overwrite: false,
-      });
-
       uploaded.push({
         secureUrl: result.secure_url,
         publicId: result.public_id,

@@ -8,18 +8,7 @@ import { api } from '@/lib/api';
 import { formatNaira } from '@/lib/currency';
 import { useCartStore } from '@/store/cartStore';
 import { useAuthStore } from '@/store/authStore';
-
-function resolveProductImage(product: { images?: { url?: string }[] }) {
-  let image = '/product-placeholder.svg';
-  if (product.images) {
-    if (product.images[0]) {
-      if (product.images[0].url) {
-        image = product.images[0].url;
-      }
-    }
-  }
-  return image;
-}
+import { getProductImageUrl } from '@/lib/productImages';
 
 function getLinePrice(item: any) {
   return Number(item.product.sellingPrice) + Number(item.variant?.priceDelta ?? 0);
@@ -98,7 +87,7 @@ export default function CartPage() {
                   className="flex items-center gap-4 rounded-2xl border border-white/5 bg-charcoal/50 p-4"
                 >
                   <img
-                    src={resolveProductImage(item.product)}
+                    src={getProductImageUrl(item.product)}
                     alt={item.product.title}
                     className="h-20 w-20 rounded-xl object-cover"
                   />

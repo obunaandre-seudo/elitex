@@ -7,39 +7,31 @@ import slugify from '../utils/slugify';
 import { isDatabaseUnavailable } from '../utils/dbFallback';
 import { AuthedRequest } from '../middleware/auth';
 import { deleteCloudinaryImages, uploadProductImages, UploadedCloudinaryImage } from '../services/cloudinary.service';
+import {
+  buildExternalProductImages,
+  GIFT_IDEAS_CATEGORY_SLUG,
+  getAdminProductCategoryName,
+  getImageStoragePolicy,
+  normalizeExternalImageUrls,
+  resolveAdminProductCategorySlug,
+  SEXUAL_WELLNESS_CATEGORY_SLUG,
+} from '../services/imageStoragePolicy.service';
+import { ADMIN_PRODUCT_PREFIX, isAdminCreatedProductId } from '../utils/productPricing';
 
-const MANUAL_PRODUCT_PREFIX = 'MANUAL-';
-const SEXUAL_WELLNESS_SLUG = 'sexual-wellness';
-const GIFT_IDEAS_SLUG = 'gift-ideas';
-const MANUAL_CATEGORY_META = {
-  [SEXUAL_WELLNESS_SLUG]: { name: 'Sexual Wellness', slug: SEXUAL_WELLNESS_SLUG },
-  [GIFT_IDEAS_SLUG]: { name: 'Gift Ideas', slug: GIFT_IDEAS_SLUG },
-} as const;
-
-type ManualCategorySlug = keyof typeof MANUAL_CATEGORY_META;
-
-function normalizeManualCategorySlug(value?: string): ManualCategorySlug {
-  return value === GIFT_IDEAS_SLUG ? GIFT_IDEAS_SLUG : SEXUAL_WELLNESS_SLUG;
-}
-
-function getManualCategoryName(slug: ManualCategorySlug) {
-  return MANUAL_CATEGORY_META[slug].name;
-}
-
-function isManualProduct(product: { aliexpressId: string | null }) {
-  return Boolean(product.aliexpressId && product.aliexpressId.startsWith(MANUAL_PRODUCT_PREFIX));
+function isAdminCreatedProduct(product: { aliexpressId: string | null }) {
+  return isAdminCreatedProductId(product.aliexpressId);
 }
 
 function mergeCatalog(products: Array<any>) {
-  const manual: any[] = [];
+  const adminCreated: any[] = [];
   const regular: any[] = [];
 
   for (const product of products) {
-    if (isManualProduct(product)) manual.push(product);
+    if (isAdminCreatedProduct(product)) adminCreated.push(product);
     else regular.push(product);
   }
 
-  return [...manual, ...regular];
+  return [...adminCreated, ...regular];
 }
 
 function toNumber(value: unknown, fallback = 0) {
@@ -47,8 +39,8 @@ function toNumber(value: unknown, fallback = 0) {
   return Number.isFinite(n) ? n : fallback;
 }
 
-function buildManualProductId() {
-  return `${MANUAL_PRODUCT_PREFIX}${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+function buildAdminProductId() {
+  return `${ADMIN_PRODUCT_PREFIX}${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function roundCurrency(value: number) {
@@ -252,14 +244,15 @@ export async function syncFromCjDropshipping(req: Request, res: Response, next: 
   }
 }
 
-export async function createManualProduct(req: AuthedRequest, res: Response, next: NextFunction) {
-  const { name, price, stock, description, discountPercent, categorySlug: requestedCategorySlug } = req.body as {
+export async function createAdminProduct(req: AuthedRequest, res: Response, next: NextFunction) {
+  const { name, price, stock, description, discountPercent, categorySlug: requestedCategorySlug, imageUrls } = req.body as {
     name?: string;
     price?: string | number;
     stock?: string | number;
     description?: string;
     discountPercent?: string | number;
     categorySlug?: string;
+    imageUrls?: string | string[];
   };
   let uploadedImages: UploadedCloudinaryImage[] = [];
 
@@ -269,25 +262,42 @@ export async function createManualProduct(req: AuthedRequest, res: Response, nex
     const numericPrice = toNumber(price, NaN);
     const numericStock = Math.max(0, Math.floor(toNumber(stock, 0)));
     const numericDiscount = Math.min(100, Math.max(0, toNumber(discountPercent, 0)));
-    const categorySlug = normalizeManualCategorySlug(requestedCategorySlug);
+    const categorySlug = resolveAdminProductCategorySlug(requestedCategorySlug);
+    if (categorySlug !== GIFT_IDEAS_CATEGORY_SLUG) {
+      throw new AppError('Use the dedicated Sexual Wellness product endpoint for Sexual Wellness products.');
+    }
+    const imagePolicy = getImageStoragePolicy(categorySlug);
     const imageFiles = Array.isArray(req.files) ? req.files : [];
+    const externalImageUrls = normalizeExternalImageUrls(imageUrls);
 
     if (!title) throw new AppError('Product name is required.');
     if (!writeUp) throw new AppError('Product description is required.');
     if (!Number.isFinite(numericPrice) || numericPrice <= 0) throw new AppError('Product price must be greater than zero.');
-    if (!imageFiles.length) throw new AppError('At least one product image is required.');
+
+    if (!imagePolicy.allowCloudinaryUpload && imageFiles.length) {
+      throw new AppError('Sexual Wellness products require external HTTPS image URLs. File uploads to Cloudinary are not allowed.');
+    }
+
+    const externalImages = buildExternalProductImages(externalImageUrls, imagePolicy);
+
+    if (imagePolicy.allowCloudinaryUpload && !imageFiles.length) {
+      throw new AppError('At least one product image is required.');
+    }
 
     const basePrice = Math.round(numericPrice * 100) / 100;
     const sellingPrice = Math.max(0, Math.round(basePrice * (1 - numericDiscount / 100) * 100) / 100);
-    const aliexpressId = buildManualProductId();
+    const aliexpressId = buildAdminProductId();
     const slug = slugify(title) + '-' + aliexpressId.slice(-6);
-    uploadedImages = await uploadProductImages(imageFiles, slug);
+    uploadedImages = imagePolicy.allowCloudinaryUpload ? await uploadProductImages(imageFiles, slug, imagePolicy) : [];
+    const imageCreateData = imagePolicy.allowCloudinaryUpload
+      ? uploadedImages.map((image, index) => ({ url: image.secureUrl, publicId: image.publicId, position: index }))
+      : externalImages;
 
     const product = await prisma.$transaction(async (tx) => {
       const category = await tx.category.upsert({
         where: { slug: categorySlug },
         update: {},
-        create: { name: getManualCategoryName(categorySlug), slug: categorySlug },
+        create: { name: getAdminProductCategoryName(categorySlug), slug: categorySlug },
       });
 
       const createdProduct = await tx.product.create({
@@ -305,7 +315,7 @@ export async function createManualProduct(req: AuthedRequest, res: Response, nex
           ratingCount: 0,
           categoryId: category.id,
           images: {
-            create: uploadedImages.map((image, index) => ({ url: image.secureUrl, publicId: image.publicId, position: index })),
+            create: imageCreateData,
           },
         },
         include: { images: true, category: true },
@@ -314,7 +324,7 @@ export async function createManualProduct(req: AuthedRequest, res: Response, nex
       await tx.auditLog.create({
         data: {
           userId: req.user?.sub,
-          action: 'CREATE_MANUAL_PRODUCT',
+          action: 'CREATE_GIFT_IDEAS_PRODUCT',
           entity: 'Product',
           entityId: createdProduct.id,
           metadata: {
@@ -323,6 +333,7 @@ export async function createManualProduct(req: AuthedRequest, res: Response, nex
             sellingPrice,
             stock: numericStock,
             discountPercent: numericDiscount,
+            categorySlug,
           },
         },
       });
@@ -330,7 +341,7 @@ export async function createManualProduct(req: AuthedRequest, res: Response, nex
       return createdProduct;
     });
 
-    res.status(201).json({ product, message: 'Manual product created successfully.' });
+    res.status(201).json({ product, message: 'Product created successfully.' });
   } catch (err) {
     await deleteCloudinaryImages(uploadedImages.map((image) => image.publicId));
 
@@ -341,45 +352,151 @@ export async function createManualProduct(req: AuthedRequest, res: Response, nex
   }
 }
 
-export async function updateManualProduct(req: AuthedRequest, res: Response, next: NextFunction) {
-  const { name, price, stock, description, discountPercent, categorySlug: requestedCategorySlug } = req.body as {
+export async function createSexualWellnessProduct(req: AuthedRequest, res: Response, next: NextFunction) {
+  const { name, price, stock, description, discountPercent, categorySlug: requestedCategorySlug, imageUrls } = req.body as {
     name?: string;
     price?: string | number;
     stock?: string | number;
     description?: string;
     discountPercent?: string | number;
     categorySlug?: string;
+    imageUrls?: string | string[];
+  };
+
+  try {
+    const title = String(name ?? '').trim();
+    const writeUp = String(description ?? '').trim();
+    const numericPrice = toNumber(price, NaN);
+    const numericStock = Math.max(0, Math.floor(toNumber(stock, 0)));
+    const numericDiscount = Math.min(100, Math.max(0, toNumber(discountPercent, 0)));
+    const categorySlug = resolveAdminProductCategorySlug(requestedCategorySlug);
+
+    if (categorySlug !== SEXUAL_WELLNESS_CATEGORY_SLUG) {
+      throw new AppError('Sexual Wellness products must use the sexual-wellness category.');
+    }
+
+    const imagePolicy = getImageStoragePolicy(categorySlug);
+    const imageFiles = Array.isArray(req.files) ? req.files : [];
+    if (imageFiles.length) {
+      throw new AppError('Sexual Wellness products require external HTTPS image URLs. File uploads to Cloudinary are not allowed.');
+    }
+
+    if (!title) throw new AppError('Product name is required.');
+    if (!writeUp) throw new AppError('Product description is required.');
+    if (!Number.isFinite(numericPrice) || numericPrice <= 0) throw new AppError('Product price must be greater than zero.');
+
+    const externalImages = buildExternalProductImages(normalizeExternalImageUrls(imageUrls), imagePolicy);
+    const basePrice = Math.round(numericPrice * 100) / 100;
+    const sellingPrice = Math.max(0, Math.round(basePrice * (1 - numericDiscount / 100) * 100) / 100);
+    const aliexpressId = buildAdminProductId();
+    const slug = slugify(title) + '-' + aliexpressId.slice(-6);
+
+    const product = await prisma.$transaction(async (tx) => {
+      const category = await tx.category.upsert({
+        where: { slug: categorySlug },
+        update: {},
+        create: { name: getAdminProductCategoryName(categorySlug), slug: categorySlug },
+      });
+
+      const createdProduct = await tx.product.create({
+        data: {
+          aliexpressId,
+          title,
+          slug,
+          description: writeUp,
+          basePrice,
+          markupPercent: 0,
+          sellingPrice,
+          currency: 'NGN',
+          stock: numericStock,
+          ratingAverage: 0,
+          ratingCount: 0,
+          categoryId: category.id,
+          images: { create: externalImages },
+        },
+        include: { images: true, category: true, variants: true },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId: req.user?.sub,
+          action: 'CREATE_SEXUAL_WELLNESS_PRODUCT',
+          entity: 'Product',
+          entityId: createdProduct.id,
+          metadata: { title, price: basePrice, sellingPrice, stock: numericStock, discountPercent: numericDiscount, categorySlug },
+        },
+      });
+
+      return createdProduct;
+    });
+
+    res.status(201).json({ product, message: 'Sexual Wellness product created successfully.' });
+  } catch (err) {
+    if (!isDatabaseUnavailable(err)) {
+      return next(err);
+    }
+    return res.status(503).json({ error: 'Database unavailable. Product images were not stored.' });
+  }
+}
+
+export async function updateAdminProduct(req: AuthedRequest, res: Response, next: NextFunction) {
+  const { name, price, stock, description, discountPercent, categorySlug: requestedCategorySlug, imageUrls } = req.body as {
+    name?: string;
+    price?: string | number;
+    stock?: string | number;
+    description?: string;
+    discountPercent?: string | number;
+    categorySlug?: string;
+    imageUrls?: string | string[];
   };
   let uploadedImages: UploadedCloudinaryImage[] = [];
 
   try {
     const existing = await prisma.product.findUnique({ where: { id: req.params.id }, include: { images: true, category: true } });
     if (!existing) throw new AppError('Product not found.', 404);
-    if (!isManualProduct(existing)) throw new AppError('Only manually created products can be edited here.', 400);
+    if (!isAdminCreatedProduct(existing)) throw new AppError('Only admin-created products can be edited here.', 400);
 
     const title = String(name ?? existing.title).trim();
     const writeUp = String(description ?? existing.description).trim();
     const numericPrice = toNumber(price, Number(existing.basePrice));
     const numericStock = Math.max(0, Math.floor(toNumber(stock, existing.stock)));
     const numericDiscount = Math.min(100, Math.max(0, toNumber(discountPercent, 0)));
-    const categorySlug = normalizeManualCategorySlug(requestedCategorySlug ?? existing.category?.slug);
+    const categorySlug = resolveAdminProductCategorySlug(requestedCategorySlug ?? existing.category?.slug);
+    const imagePolicy = getImageStoragePolicy(categorySlug);
     const imageFiles = Array.isArray(req.files) ? req.files : [];
+    const externalImageUrls = normalizeExternalImageUrls(imageUrls);
 
     if (!title) throw new AppError('Product name is required.');
     if (!writeUp) throw new AppError('Product description is required.');
     if (!Number.isFinite(numericPrice) || numericPrice <= 0) throw new AppError('Product price must be greater than zero.');
 
+    if (!imagePolicy.allowCloudinaryUpload && imageFiles.length) {
+      throw new AppError('Sexual Wellness products require external HTTPS image URLs. File uploads to Cloudinary are not allowed.');
+    }
+
     const basePrice = Math.round(numericPrice * 100) / 100;
     const sellingPrice = Math.max(0, Math.round(basePrice * (1 - numericDiscount / 100) * 100) / 100);
-    const slug = existing.slug.startsWith('manual-') ? slugify(title) + '-' + (existing.aliexpressId?.slice(-6) ?? existing.id.slice(0, 6)) : existing.slug;
-    uploadedImages = imageFiles.length ? await uploadProductImages(imageFiles, slug) : [];
-    const replacedImagePublicIds = imageFiles.length ? existing.images.map((image) => image.publicId).filter(isNonEmptyString) : [];
+    const slug = isAdminCreatedProduct(existing) ? slugify(title) + '-' + (existing.aliexpressId?.slice(-6) ?? existing.id.slice(0, 6)) : existing.slug;
+    const existingExternalImages = existing.images
+      .filter((image) => !image.publicId)
+      .map((image, position) => ({ url: image.url, publicId: null, position }));
+    const externalImages = externalImageUrls.length
+      ? buildExternalProductImages(externalImageUrls, imagePolicy)
+      : imagePolicy.requireExternalHttpsUrl
+        ? buildExternalProductImages(existingExternalImages.map((image) => image.url), imagePolicy)
+        : [];
+    uploadedImages = imagePolicy.allowCloudinaryUpload && imageFiles.length ? await uploadProductImages(imageFiles, slug, imagePolicy) : [];
+    const shouldReplaceImages = uploadedImages.length > 0 || externalImages.length > 0;
+    const replacedImagePublicIds = shouldReplaceImages ? existing.images.map((image) => image.publicId).filter(isNonEmptyString) : [];
+    const imageCreateData = imagePolicy.allowCloudinaryUpload
+      ? uploadedImages.map((image, index) => ({ url: image.secureUrl, publicId: image.publicId, position: index }))
+      : externalImages;
 
     const product = await prisma.$transaction(async (tx) => {
       const category = await tx.category.upsert({
         where: { slug: categorySlug },
         update: {},
-        create: { name: getManualCategoryName(categorySlug), slug: categorySlug },
+        create: { name: getAdminProductCategoryName(categorySlug), slug: categorySlug },
       });
 
       const updatedProduct = await tx.product.update({
@@ -393,10 +510,10 @@ export async function updateManualProduct(req: AuthedRequest, res: Response, nex
           stock: numericStock,
           sourceBasePrice: null,
           categoryId: category.id,
-          images: uploadedImages.length
+          images: shouldReplaceImages
             ? {
                 deleteMany: {},
-                create: uploadedImages.map((image, index) => ({ url: image.secureUrl, publicId: image.publicId, position: index })),
+                create: imageCreateData,
               }
             : undefined,
         },
@@ -406,10 +523,10 @@ export async function updateManualProduct(req: AuthedRequest, res: Response, nex
       await tx.auditLog.create({
         data: {
           userId: req.user?.sub,
-          action: 'UPDATE_MANUAL_PRODUCT',
+          action: categorySlug === 'sexual-wellness' ? 'UPDATE_SEXUAL_WELLNESS_PRODUCT' : 'UPDATE_ADMIN_PRODUCT',
           entity: 'Product',
           entityId: updatedProduct.id,
-          metadata: { title, price: basePrice, sellingPrice, stock: numericStock, discountPercent: numericDiscount },
+          metadata: { title, price: basePrice, sellingPrice, stock: numericStock, discountPercent: numericDiscount, categorySlug },
         },
       });
 
@@ -417,7 +534,7 @@ export async function updateManualProduct(req: AuthedRequest, res: Response, nex
     });
 
     await deleteCloudinaryImages(replacedImagePublicIds);
-    res.json({ product, message: 'Manual product updated successfully.' });
+    res.json({ product, message: 'Product updated successfully.' });
   } catch (err) {
     await deleteCloudinaryImages(uploadedImages.map((image) => image.publicId));
 

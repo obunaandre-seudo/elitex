@@ -17,8 +17,9 @@ router.patch('/users/:id/role', adminController.updateUserRole);
 router.get('/audit-logs', adminController.listAuditLogs);
 router.get('/coupons', adminController.listCoupons);
 router.post('/coupons', adminController.createCoupon);
-router.post('/products', productImageUpload.array('images', 6), productsController.createManualProduct);
-router.patch('/products/:id', productImageUpload.array('images', 6), productsController.updateManualProduct);
+router.post('/products/sexual-wellness', productsController.createSexualWellnessProduct);
+router.post('/products', productImageUpload.array('images', 6), productsController.createAdminProduct);
+router.patch('/products/:id', productImageUpload.array('images', 6), productsController.updateAdminProduct);
 
 export default router;
 

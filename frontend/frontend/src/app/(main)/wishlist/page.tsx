@@ -6,19 +6,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, X, ShoppingBag } from 'lucide-react';
 import { api } from '@/lib/api';
 import { formatNaira } from '@/lib/currency';
+import { getProductImageUrl } from '@/lib/productImages';
 import StarRating from '@/components/StarRating';
-
-function resolveProductImage(product: { images?: { url?: string }[] }) {
-  let image = '/product-placeholder.svg';
-  if (product.images) {
-    if (product.images[0]) {
-      if (product.images[0].url) {
-        image = product.images[0].url;
-      }
-    }
-  }
-  return image;
-}
 
 export default function WishlistPage() {
   const queryClient = useQueryClient();
@@ -75,7 +64,7 @@ export default function WishlistPage() {
               >
                 <div className="relative aspect-square overflow-hidden rounded-xl bg-graphite">
                   <img
-                    src={resolveProductImage(item.product)}
+                    src={getProductImageUrl(item.product)}
                     alt={item.product.title}
                     className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
                   />
