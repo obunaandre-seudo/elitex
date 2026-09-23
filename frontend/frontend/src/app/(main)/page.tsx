@@ -18,7 +18,7 @@ import viberatorImage from '../../../viberator.jpg';
 const categoryShowcase = [
   { name: 'Sexual Wellness', slug: 'sexual-wellness', image: viberatorImage },
   { name: 'Gift Ideas', slug: 'gift-ideas', image: accessoriesImage },
-  { name: 'Premium Collection', slug: 'premium-collection', image: downloadImage },
+  { name: 'Premium Collection', slug: 'cj-dropshipping', image: downloadImage },
 ];
 const trustBadges = [
   { icon: ShieldCheck, label: 'Verified Listings', detail: 'Every item is reviewed before it goes live' },
