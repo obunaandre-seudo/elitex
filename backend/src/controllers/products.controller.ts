@@ -367,7 +367,6 @@ export async function createSexualWellnessProduct(req: AuthedRequest, res: Respo
     imageUrls?: string | string[];
   };
 
-  let uploadedImages: UploadedCloudinaryImage[] = [];
   try {
     const title = String(name ?? '').trim();
     const writeUp = String(description ?? '').trim();
@@ -382,6 +381,9 @@ export async function createSexualWellnessProduct(req: AuthedRequest, res: Respo
 
     const imagePolicy = getImageStoragePolicy(categorySlug);
     const imageFiles = Array.isArray(req.files) ? req.files : [];
+    if (imageFiles.length) {
+      throw new AppError('Sexual Wellness products require external HTTPS image URLs. File uploads to Cloudinary are not allowed.');
+    }
 
     if (!title) throw new AppError('Product name is required.');
     if (!writeUp) throw new AppError('Product description is required.');
@@ -392,13 +394,6 @@ export async function createSexualWellnessProduct(req: AuthedRequest, res: Respo
     const sellingPrice = Math.max(0, Math.round(basePrice * (1 - numericDiscount / 100) * 100) / 100);
     const aliexpressId = buildAdminProductId();
     const slug = slugify(title) + '-' + aliexpressId.slice(-6);
-    uploadedImages = imagePolicy.allowCloudinaryUpload ? await uploadProductImages(imageFiles, slug, imagePolicy) : [];
-    if (imagePolicy.allowCloudinaryUpload && !imageFiles.length && !externalImages.length) {
-      throw new AppError('At least one product image is required.');
-    }
-    const imageCreateData = uploadedImages.length
-      ? uploadedImages.map((image, index) => ({ url: image.secureUrl, publicId: image.publicId, position: index }))
-      : externalImages;
 
     const product = await prisma.$transaction(async (tx) => {
       const category = await tx.category.upsert({
@@ -421,7 +416,7 @@ export async function createSexualWellnessProduct(req: AuthedRequest, res: Respo
           ratingAverage: 0,
           ratingCount: 0,
           categoryId: category.id,
-          images: { create: imageCreateData },
+          images: { create: externalImages },
         },
         include: { images: true, category: true, variants: true },
       });
@@ -441,7 +436,6 @@ export async function createSexualWellnessProduct(req: AuthedRequest, res: Respo
 
     res.status(201).json({ product, message: 'Sexual Wellness product created successfully.' });
   } catch (err) {
-    await deleteCloudinaryImages(uploadedImages.map((image) => image.publicId));
     if (!isDatabaseUnavailable(err)) {
       return next(err);
     }
