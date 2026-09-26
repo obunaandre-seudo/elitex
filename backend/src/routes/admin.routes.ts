@@ -20,6 +20,10 @@ router.post('/coupons', adminController.createCoupon);
 router.post('/products/sexual-wellness', productImageUpload.array('images', 6), productsController.createSexualWellnessProduct);
 router.post('/products', productImageUpload.array('images', 6), productsController.createAdminProduct);
 router.patch('/products/:id', productImageUpload.array('images', 6), productsController.updateAdminProduct);
+// Accept full-form product edits as well as partial updates. The controller
+// already treats omitted fields as unchanged, so both methods share the same
+// validation and persistence path.
+router.put('/products/:id', productImageUpload.array('images', 6), productsController.updateAdminProduct);
 
 export default router;
 
