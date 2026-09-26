@@ -484,13 +484,15 @@ export async function updateAdminProduct(req: AuthedRequest, res: Response, next
     const existingExternalImages = existing.images
       .filter((image) => !image.publicId)
       .map((image, position) => ({ url: image.url, publicId: null, position }));
-    const externalImages = externalImageUrls.length
+    const existingExternalImageUrls = existingExternalImages.map((image) => image.url);
+    const imageUrlsChanged = externalImageUrls.length > 0 &&
+      (externalImageUrls.length !== existingExternalImageUrls.length ||
+        externalImageUrls.some((url, index) => url !== existingExternalImageUrls[index]));
+    const externalImages = imageUrlsChanged
       ? buildExternalProductImages(externalImageUrls, imagePolicy)
-      : imagePolicy.requireExternalHttpsUrl
-        ? buildExternalProductImages(existingExternalImages.map((image) => image.url), imagePolicy)
-        : [];
+      : [];
     uploadedImages = imagePolicy.allowCloudinaryUpload && imageFiles.length ? await uploadProductImages(imageFiles, slug, imagePolicy) : [];
-    const shouldReplaceImages = uploadedImages.length > 0 || externalImages.length > 0;
+    const shouldReplaceImages = uploadedImages.length > 0 || imageUrlsChanged;
     const replacedImagePublicIds = shouldReplaceImages ? existing.images.map((image) => image.publicId).filter(isNonEmptyString) : [];
     const imageCreateData = imagePolicy.allowCloudinaryUpload
       ? uploadedImages.map((image, index) => ({ url: image.secureUrl, publicId: image.publicId, position: index }))
