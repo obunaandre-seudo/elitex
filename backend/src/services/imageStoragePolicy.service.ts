@@ -29,7 +29,7 @@ const ADMIN_PRODUCT_CATEGORY_SLUGS = new Set<string>(Object.keys(ADMIN_PRODUCT_C
 export function isValidHttpsImageUrl(value: string) {
   try {
     const url = new URL(value);
-    return url.protocol === 'https:' && Boolean(url.hostname);
+    return (url.protocol === 'https:' || url.protocol === 'http:') && Boolean(url.hostname);
   } catch {
     return false;
   }
@@ -87,7 +87,7 @@ export function buildExternalProductImages(imageUrls: string[], policy: ImageSto
 
   for (const imageUrl of imageUrls) {
     if (!isValidHttpsImageUrl(imageUrl)) {
-      throw new AppError('External product image URLs must be valid HTTPS URLs.');
+      throw new AppError('External product image URLs must be valid HTTP or HTTPS URLs.');
     }
   }
 
