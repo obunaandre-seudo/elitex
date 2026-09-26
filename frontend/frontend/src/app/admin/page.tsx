@@ -200,6 +200,7 @@ function ProductSync() {
   const [editImagePreviews, setEditImagePreviews] = useState<string[]>([]);
   const [editImageUrl, setEditImageUrl] = useState('');
   const [editExternalImageUrls, setEditExternalImageUrls] = useState('');
+  const [editOriginalExternalImageUrls, setEditOriginalExternalImageUrls] = useState('');
   const [editing, setEditing] = useState(false);
   const queryClient = useQueryClient();
 
@@ -306,7 +307,9 @@ function ProductSync() {
     setEditImageFiles([]);
     setEditImagePreviews([]);
     setEditImageUrl(product.images?.[0]?.url ?? '');
-    setEditExternalImageUrls((product.images ?? []).map((image: any) => image.url).filter(Boolean).join('\n'));
+    const existingImageUrls = (product.images ?? []).map((image: any) => image.url).filter(Boolean).join('\n');
+    setEditExternalImageUrls(existingImageUrls);
+    setEditOriginalExternalImageUrls(existingImageUrls);
   }
 
   async function handleUpdateProduct() {
@@ -324,7 +327,7 @@ function ProductSync() {
       payload.append('description', editDescription);
       payload.append('discountPercent', String(Number(editDiscountPercent || 0)));
       payload.append('categorySlug', editCategorySlug);
-      if (editCategorySlug === 'sexual-wellness') {
+      if (editCategorySlug === 'sexual-wellness' && editExternalImageUrls.trim() !== editOriginalExternalImageUrls.trim()) {
         editExternalImageUrls
           .split('\n')
           .map((url) => url.trim())
